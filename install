@@ -1,0 +1,4 @@
+#!/bin/bash
+
+AmakeCpp --test
+AmakeCpp --link -lSDL2 -lSDL2_ttf
