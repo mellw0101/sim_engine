@@ -9,6 +9,7 @@ Vector vector_multi(Vector *vector, const double scalar) {
   vector->x *= scalar;
   vector->y *= scalar;
   return *vector;
+  
 }
 
 Vector vector_add(Vector *vector, const Vector *add) {
