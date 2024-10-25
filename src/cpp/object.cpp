@@ -1,11 +1,11 @@
 #include "../include/prototypes.h"
 
 Object *object_create(const double pos_x, const double pos_y, const Ushort width, const Ushort height,
-                        const double accel_x, const double accel_y, Uint state, const double max_speed) {
+                      const double friction_x, const double friction_y, Uint state, const double max_speed) {
   Object *object = (Object *)malloc(sizeof(Object));
-  if (object == NULL) {
+  if (!object) {
     fprintf(stderr, "Failed to malloc Object.\n");
-    return NULL;
+    return nullptr;
   }
   object->pos.x       = pos_x;
   object->pos.y       = pos_y;
@@ -13,18 +13,19 @@ Object *object_create(const double pos_x, const double pos_y, const Ushort width
   object->vel.y       = 0;
   object->width       = width;
   object->height      = height;
-  object->accel.x     = accel_x;
-  object->accel.y     = accel_y;
+  object->friction.x  = friction_x;
+  object->friction.y  = friction_y;
   object->state       = state;
   object->max_speed.x = max_speed;
-  object->next        = NULL;
-  if (object_head == NULL) {
-    object_head = object;
-    Objectail = object;
+  object->flag.clear();
+  object->next        = nullptr;
+  if (!objects_head) {
+    objects_head = object;
+    objects_tail = object;
   }
   else {
-    Objectail->next = object;
-    Objectail       = Objectail->next;
+    objects_tail->next = object;
+    objects_tail       = objects_tail->next;
   }
   return object;
 }
@@ -32,12 +33,6 @@ Object *object_create(const double pos_x, const double pos_y, const Ushort width
 SDL_Rect object_rect(Object *const *object) {
   SDL_Rect rect = {(int)(*object)->pos.x, (int)(*object)->pos.y, (*object)->width, (*object)->height};
   return rect;
-}
-
-void object_draw(Object *const *object) {
-  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-  const SDL_Rect current_rect = object_rect(object);
-  SDL_RenderFillRect(renderer, &current_rect);
 }
 
 /* Check if 'object' is colliding with a 'static_object'. */
@@ -48,13 +43,13 @@ void object_collision_with_static_obj(Object *const *object, Object *const *stat
       CONSTRAIN_VEL_IF(((*object)->vel.y > 0.00), (*object)->vel.y)
       ((*object)->state |= ON_STATIC_OBJECT);
       /* Apply friction if 'static_object' has any. */
-      if ((*static_object)->accel.y > 0.00) {
+      if ((*static_object)->friction.y > 0.00) {
         if ((*object)->vel.x > 0.00) {
-          ACCEL((*object)->vel.x, -(*static_object)->accel.y, TIME_STEP_S);
+          ACCEL((*object)->vel.x, -(*static_object)->friction.y, TIME_STEP_S);
           CONSTRAIN_VEL_IF(((*object)->vel.x < 0.00), (*object)->vel.x);
         }
         else if ((*object)->vel.x < 0.00) {
-          ACCEL((*object)->vel.x, (*static_object)->accel.y, TIME_STEP_S);
+          ACCEL((*object)->vel.x, (*static_object)->friction.y, TIME_STEP_S);
           CONSTRAIN_VEL_IF(((*object)->vel.x > 0.00), (*object)->vel.x)
         }
       }
@@ -73,4 +68,10 @@ void object_collision_with_static_obj(Object *const *object, Object *const *stat
       CONSTRAIN_VEL_IF(((*object)->vel.x < 0.00), (*object)->vel.x);
     }
   }
+}
+
+void Object::draw(void) {
+  SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
+  const SDL_Rect r {(int)pos.x, (int)pos.y, width, height};
+  SDL_RenderFillRect(ren, &r);
 }

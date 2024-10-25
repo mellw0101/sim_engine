@@ -1,14 +1,15 @@
 #include "../include/prototypes.h"
 
-char         *window_title  = NULL;
-int           window_width  = 1200;
-int           window_height = 800;
-SDL_Window   *window        = NULL;
-SDL_Renderer *renderer      = NULL;
+SDL_Window   *win          = nullptr;
+SDL_Renderer *ren          = nullptr;
 SDL_Event     event;
-bool          running          = FALSE;
-Object     *object_head      = NULL;
-Object     *Objectail      = NULL;
-unsigned char config_timestamp = 0;
 
-SDL_Texture *text_texture = NULL;
+char *window_title     = nullptr;
+Uchar config_timestamp = 0;
+int   window_width     = 1200;
+int   window_height    = 800;
+
+Object *objects_head = nullptr;
+Object *objects_tail = nullptr;
+Engine *engine       = nullptr;
+Player *player       = nullptr;
