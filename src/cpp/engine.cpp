@@ -1,6 +1,6 @@
 #include "../include/prototypes.h"
 
-/* Init sdl, the 'win' and the 'ren'. */
+/* Init sdl, the 'win' and the 'engine->ren.ren'. */
 void init(void) {
   engine_create();
   player_create();
@@ -16,12 +16,15 @@ void init(void) {
     fprintf(stderr, "Failed to create win.\n");
     exit(1);
   }
-  SDL_GetWindowSizeInPixels(win, &window_width, &window_height);
-  ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
-  if (!ren) {
+  int w, h;
+  SDL_GetWindowSizeInPixels(win, &w, &h);
+  window_width = w;
+  window_height = h;
+  engine->ren.ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+  if (!engine->ren.ren) {
     SDL_DestroyWindow(win);
     SDL_Quit();
-    fprintf(stderr, "Failed to create ren.\n");
+    fprintf(stderr, "Failed to create 'engine->ren.ren'.\n");
     exit(1);
   }
   engine->state.set<ENGINE_RUNNING>();
@@ -29,16 +32,20 @@ void init(void) {
 
 /* Cleanly exit and cleanup resources. */
 void cleanup(void) {
-  SDL_DestroyRenderer(ren);
+  SDL_DestroyRenderer(engine->ren.ren);
   SDL_DestroyWindow(win);
   TTF_Quit();
   SDL_Quit();
+  int obj_num = 0;
   Object *current = objects_head;
   while (current) {
     Object *next = current->next;
     free(current);
     current = next;
+    ++obj_num;
   }
+  printf("Number of objects at cleanup: %d\n", obj_num);
+  engine->performance_data.print_report();
   delete engine;
   if (player) {
     free(player);
@@ -47,12 +54,12 @@ void cleanup(void) {
 }
 
 void clear_frame(void) {
-  SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-  SDL_RenderClear(ren);
+  SDL_SetRenderDrawColor(engine->ren.ren, BLACK);
+  SDL_RenderClear(engine->ren.ren);
 }
 
 void update_frame(void) {
-  SDL_RenderPresent(ren);
+  SDL_RenderPresent(engine->ren.ren);
 }
 
 void prosses_keys(void) {
@@ -62,9 +69,13 @@ void prosses_keys(void) {
     engine->state.unset<ENGINE_RUNNING>();
     return;
   }
+  /* First clear player direction.  So that it`s always set correctly. */
   player->direction.clear();
-  if (state[SDL_SCANCODE_W] && player->state.is_set<PLAYER_CAN_FLY>()) {
-    player->vel.accel(0, -player->accel.y, FRAMETIME_S);
+  /* Set the appropriet direction based on currently pressed movement buttons. */
+  if (state[SDL_SCANCODE_W]) {
+    if (player->state.is_set<PLAYER_CAN_FLY>()) {
+      player->vel.accel(0, -player->accel.y, FRAMETIME_S);
+    }
     player->direction.set<PLAYER_UP>();
   }
   if (state[SDL_SCANCODE_S]) {
@@ -79,46 +90,9 @@ void prosses_keys(void) {
     player->vel.accel(player->accel.x, 0, FRAMETIME_S);
     player->direction.set<PLAYER_RIGHT>();
   }
-  /* Unset both directions when they cancel eachother. */
-  if (player->direction.is_set<PLAYER_UP>() && player->direction.is_set<PLAYER_DOWN>()) {
-    player->direction.unset<PLAYER_UP>();
-    player->direction.unset<PLAYER_DOWN>();
-  }
-  if (player->direction.is_set<PLAYER_LEFT>() && player->direction.is_set<PLAYER_RIGHT>()) {
-    player->direction.unset<PLAYER_LEFT>();
-    player->direction.unset<PLAYER_RIGHT>();
-  }
-  /* If more than one direction is set and thay dont cancel out set a diaginal direction. */
-  if (player->direction.is_set<PLAYER_UP>() && player->direction.is_set<PLAYER_RIGHT>()) {
-    player->direction.set<PLAYER_UP_RIGHT>();
-  }
-  if (player->direction.is_set<PLAYER_UP>() && player->direction.is_set<PLAYER_LEFT>()) {
-    player->direction.set<PLAYER_UP_LEFT>();
-  }
-  if (player->direction.is_set<PLAYER_DOWN>() && player->direction.is_set<PLAYER_RIGHT>()) {
-    player->direction.set<PLAYER_DOWN_RIGHT>();
-  }
-  if (player->direction.is_set<PLAYER_DOWN>() && player->direction.is_set<PLAYER_LEFT>()) {
-    player->direction.set<PLAYER_DOWN_LEFT>();
-  }
-  /* If any diaginal direction is set, unset the two directions that points in that direction. */
-  if (player->direction.is_set<PLAYER_UP_RIGHT>()) {
-    player->direction.unset<PLAYER_UP>();
-    player->direction.unset<PLAYER_RIGHT>();
-  }
-  if (player->direction.is_set<PLAYER_UP_LEFT>()) {
-    player->direction.unset<PLAYER_UP>();
-    player->direction.unset<PLAYER_LEFT>();
-  }
-  if (player->direction.is_set<PLAYER_DOWN_RIGHT>()) {
-    player->direction.unset<PLAYER_DOWN>();
-    player->direction.unset<PLAYER_RIGHT>();
-  }
-  if (player->direction.is_set<PLAYER_DOWN_LEFT>()) {
-    player->direction.unset<PLAYER_DOWN>();
-    player->direction.unset<PLAYER_LEFT>();
-  }
-  if (state[SDL_SCANCODE_SPACE] && player->state.is_set<PLAYER_ON_OBJECT>()) {
+  /* Make sure only one 'true' direction is */
+  player->determine_control_direction();
+  if (player->state.is_set<PLAYER_ON_OBJECT>() && state[SDL_SCANCODE_SPACE]) {
     player->state.set<PLAYER_JUMPING>();
   }
 }
@@ -130,9 +104,31 @@ void engine_create(void) {
     exit(1);
   }
   engine->state.clear();
+  engine->mouse_data.state.clear();
+  engine->add_event_callback(SDL_MOUSEMOTION, [](SDL_Event ev) {
+    engine->mouse_data.x = ev.motion.x;
+    engine->mouse_data.y = ev.motion.y;
+  });
+  engine->add_event_callback(SDL_MOUSEBUTTONDOWN, [](SDL_Event ev) {
+    if (ev.button.button == SDL_BUTTON_LEFT) {
+      engine->mouse_data.state.set<MOUSE_STATE_LEFT_HELD>();
+    }
+    else if (ev.button.button == SDL_BUTTON_RIGHT) {
+      engine->mouse_data.state.set<MOUSE_STATE_RIGHT_HELD>();
+    }
+  });
+  engine->add_event_callback(SDL_MOUSEBUTTONUP, [](SDL_Event ev) {
+    if (ev.button.button == SDL_BUTTON_LEFT) {
+      engine->mouse_data.state.unset<MOUSE_STATE_LEFT_HELD>();
+    }
+    else if (ev.button.button == SDL_BUTTON_RIGHT) {
+      engine->mouse_data.state.unset<MOUSE_STATE_RIGHT_HELD>();
+    }
+  }); 
 }
 
 void Engine::frame_start(void) {
+  ++performance_data.framecount;
   _frame_st = high_resolution_clock::now();
 }
 
@@ -140,10 +136,16 @@ void Engine::frame_start(void) {
 void Engine::frame_end(void) {
   time_point<high_resolution_clock> end            = high_resolution_clock::now();
   duration<double, milli>           frame_duration = end - _frame_st;
+  if (performance_data.framecount > 100) {
+    performance_data.frametime.data.push_back(frame_duration.count());
+  }
   if (frame_duration.count() >= (1000 / FPS)) {
     return;
   }
   duration<double, milli> sleep_time((1000 / FPS) - frame_duration.count());
+  if (performance_data.framecount > 100) {
+    performance_data.added_frametime.data.push_back(sleep_time.count());
+  }
   std::this_thread::sleep_for(sleep_time);
 }
 
@@ -159,5 +161,17 @@ void Engine::poll_events(void) {
     for (const auto &func : _event_map[_ev.type]) {
       func(_ev);
     }
+  }
+}
+
+void Engine::run(void) {
+  while (state.is_set<ENGINE_RUNNING>()) {
+    frame_start();
+    clear_frame();
+    prosses_keys();
+    physics();
+    poll_events();
+    update_frame();
+    frame_end();
   }
 }

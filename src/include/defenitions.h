@@ -1,3 +1,6 @@
+#pragma once
+
+#include <Mlib/Array.h>
 #include <Mlib/Flag.h>
 #include <Mlib/Vector.h>
 #include <SDL2/SDL.h>
@@ -6,12 +9,16 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_video.h>
+#include <algorithm>
 #include <chrono>
 #include <functional>
 #include <map>
+#include <numeric>
 #include <stdbool.h>
 #include <stdio.h>
 #include <thread>
+
+#include "Vector.h"
 
 using std::function;
 using std::map;
@@ -30,12 +37,17 @@ using std::chrono::time_point;
 
 #define __attr_const __attribute((const))
 
+#define BLACK 0, 0, 0, 255
+#define WHITE 255, 255, 255, 255
+#define RED   255, 0, 0, 255
+#define BLUE  0, 0, 255, 255
+
 #define GRAVITY           (9.806650000000001)
-#define FPS               (100.00)
+#define FPS               (240.00)
 #define FRAMETIME_S       (1.00 / FPS)
 #define TIME_STEP         (40)
 #define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
-#define PIXELS_PER_METER  (100.00)
+#define PIXELS_PER_METER  (100.00f)
 #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
 #define M_TO_PIXEL(m)     (m * PIXELS_PER_METER)
 
@@ -52,16 +64,22 @@ using std::chrono::time_point;
   (val = (val > max) ? max : val)
 
 #define MIN(val, min) \
-  (val = (val < min) ? min : val)
+  ((val < min) ? (val = min) : 0)
 
 #define CLAMP(val, min, max) \
-  (val = (val < min) ? min : (val > max) ? max : val)
+  ((val < min) ? (val = min) : (val > max) ? (val = max) : 0)
+
+#define RADIANT_F(angle) \
+  (angle * (M_PI / 180.0f))
+
+#define RADIANT_LD(angle) \
+  (angle * (M_PI / 180.0L))
 
 /* Def`s to help with objects. */
 
 /* If condition is 'true' then set value to 0.00. */
 #define CONSTRAIN_VEL_IF(cond, val) \
-  ((cond) ? (val = 0.00) : 0);
+  (cond ? (val = 0.00) : 0)
 
 /* This macro is used to confine an object within a reqtangle. */
 #define HIT_WALL(o, min_x, max_x, min_y, max_y) \
@@ -142,6 +160,13 @@ using std::chrono::time_point;
     }                                                 \
   }
 
+/* Itherate thrue all objects. */
+#define FOR_EACH_OBJECT(name) \
+  for (Object *name = objects_head; name; name = name->next)
+
+#define OBJECT_MOVING_POSITIVE true
+#define OBJECT_MOVING_NEGATIVE false
+
 #define NO_STATE              0
 #define STATIC                (1 << 0)
 #define ON_STATIC_OBJECT      (1 << 1)
@@ -152,36 +177,31 @@ using std::chrono::time_point;
 #define FLYING_ENABLED        (1 << 6)
 #define JUMP                  (1 << 7)
 
-typedef struct Vector {
-  double x;
-  double y;
+typedef struct FPointRect {
+  Vector data[5];
+} VectorRect;
 
-  Vector &operator*=(const Vector &other);
-  Vector &operator*=(const double scalar);
-
-  void set(const double x, const double y);
-  void accel(const double accel_x, const double accel_y, const double delta_t) noexcept;
-} Vector;
-
-typedef struct AccelPoint {
-  Vector                vel;
-  double                time;
-  struct AccelPoint *next;
-} AccelPoint;
-
+/* -------------- */
+/* <<- Object ->> */
+/* -------------- */
 typedef enum {
-  OBJECT_MOVING
+  OBJECT_MOVING,
+  OBJECT_HAS_COLLISION_ACTION,
+  OBJECT_HAS_GRAVITY,
+  OBJECT_IS_PROJECTILE
 } ObjectFlag;
 
 typedef struct ObjectMovingData {
-  short x_positive;
-  short x_negative;
-  short y_positive;
-  short y_negative;
+  double speed;
+  Vector positive;
+  Vector negative;
+  bool direction;
 } ObjectMovingData;
 
 typedef struct Object {
-  /* Object data. */
+  /* ------------------- */
+  /* <<- Object data ->> */
+  /* ------------------- */
   Vector pos;
   Vector vel;
   Vector friction;
@@ -191,11 +211,67 @@ typedef struct Object {
   Uint   state;
   bit_flag_t<8> flag;
   ObjectMovingData moving_data;
+  function<void(void)> collision_action;
   struct Object *next;
-  /* Object methods. */
+
+  /* ----------------------- */
+  /* <<- Object method`s ->> */
+  /* ----------------------- */
   void draw(void);
+  void move(void) noexcept;
+  void calculate_pos_change(float delta_t) noexcept;
+
+  /* -------------------------------- */
+  /* <<- Object template method`s ->> */
+  /* -------------------------------- */
+  template <typename Callback>
+  __inline__ void __attribute((__always_inline__))
+  set_collision_action(Callback &&callback) {
+    collision_action = std::forward<Callback>(callback);
+    flag.set<OBJECT_HAS_COLLISION_ACTION>();
+  }
 } Object;
 
+/* -------------------- */
+/* <<- PlayerWeapon ->> */
+/* -------------------- */
+typedef enum {
+  PLAYER_WEAPON_FOLLOWS_MOUSE,
+  PLAYER_WEAPON_FOLLOWS_MOVEMENT,
+  PLAYER_WEAPON_ENABLED
+} PlayerWeaponState;
+
+typedef enum {
+  PLAYER_WEAPON_RIFLE
+} PlayerWeaponType;
+
+typedef struct PlayerWeaponPart {
+  SDL_FPoint points[5];
+  SDL_FRect rect;
+
+  void draw(void);
+} PlayerWeaponPart;
+
+typedef struct PlayerWeapon {
+  bit_flag_t<8> state;
+  bit_flag_t<8> type;
+  float angle;
+
+  PlayerWeaponPart body;
+  PlayerWeaponPart barrel;
+  PlayerWeaponPart magazine;
+  
+  void init(void);
+  void draw_body(void);
+  void draw_barrel(void);
+  void draw_magazine(void);
+  void draw(void);
+  void attack(int button);
+} PlayerWeapon;
+
+/* -------------- */
+/* <<- Player ->> */
+/* -------------- */
 typedef enum {
   PLAYER_POSITIVE,
   PLAYER_NEGATIVE,
@@ -219,25 +295,97 @@ typedef enum {
 } PlayerDirection;
 
 typedef struct Player {
+  /* ------------------- */
+  /* <<- Player data ->> */
+  /* ------------------- */
   Vector pos;
   Vector vel;
   Vector accel;
   Vector max_speed;
-  int width;
-  int height;
+  float width;
+  float height;
   bit_flag_t<8> state;
   bit_flag_t<8> direction;
+  PlayerWeapon weapon;
 
+  /* ----------------------- */
+  /* <<- Player method`s ->> */
+  /* ----------------------- */
   void draw(void);
+  void check_collision_with(const Object *const object) noexcept;
   void check_collisions(void);
-  void jump(void);
-  void calculate_pos_change(double __attr_const delta_t) noexcept;
-  void calculate_accel_change(PlayerAccelOpt __attr_const opt, double __attr_const delta_t) noexcept;
+  void jump(void) noexcept;
+  void calculate_pos_change(const double delta_t) noexcept;
+  void determine_control_direction(void) noexcept;
 } Player;
 
+/* ----------------------- */
+/* <-< PerformanceData >-> */
+/* ----------------------- */
+typedef struct PerformanceData {
+  typedef struct PerformanceMetric {
+    MVector<double> data;
+
+    double mean(void);
+    double min(void);
+    double max(void);
+  } PerformanceMetric;
+
+  /* ---------------------------- */
+  /* <-< PerformanceData data >-> */
+  /* ---------------------------- */
+  Ulong framecount;
+  PerformanceMetric frametime;
+  PerformanceMetric added_frametime;
+
+  /* -------------------------------- */
+  /* <-< PerformanceData method`s >-> */
+  /* -------------------------------- */
+  void print_report(void) noexcept;
+} PerformanceData;
+
+/* ---------------- */
+/* <-< Renderer >-> */
+/* ---------------- */
+typedef struct Renderer {
+  /* --------------------- */
+  /* <-< Renderer data >-> */
+  /* --------------------- */
+  SDL_Renderer *ren;
+
+  /* ------------------------- */
+  /* <-< Renderer method`s >-> */
+  /* ------------------------- */
+  void set_color(Uchar r, Uchar g, Uchar b, Uchar a);
+  void fill_rect(const SDL_Rect *rect);
+  void draw_rotated_rect(float cx, float cy, float width, float height, float angle, SDL_FPoint *points);
+} Renderer;
+
+/* ----------------- */
+/* <<- MouseData ->> */
+/* ----------------- */
+typedef enum {
+  MOUSE_STATE_LEFT_HELD,
+  MOUSE_STATE_RIGHT_HELD
+} MouseState;
+
+typedef struct MouseData {
+  float x;
+  float y;
+  bit_flag_t<8> state;
+} MouseData;
+
+/* -------------- */
+/* <<- Engine ->> */
+/* -------------- */
 typedef enum {
   ENGINE_RUNNING
 } EngineState;
+
+typedef enum {
+  ENGINE_RENDER_COLOR_BLACK,
+  ENGINE_RENDER_COLOR_WHITE,
+} EngineRenderColor;
 
 class Engine {
  private:
@@ -247,10 +395,16 @@ class Engine {
 
  public:
   bit_flag_t<8> state;
+  PerformanceData performance_data;
+  Renderer ren;
+  MouseData mouse_data;
 
   void frame_start(void);
   void frame_end(void);
   void poll_events(void);
+  void prosses_key_states(void);
+  void run(void);
+
   template <typename Callback>
   void add_event_callback(Uint event, Callback &&callback) {
     _event_map[event].push_back(std::forward<Callback>(callback));
