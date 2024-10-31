@@ -1,5 +1,13 @@
 #include "../include/prototypes.h"
 
+void test(void) {
+  Vector base;
+  base.set_magnitude_and_angle(31.112698, -133.667786);
+  // Vector point {1, 0};
+  float angle = base.magnitude();
+  printf("angle: %f\n", angle);
+}
+
 void physics(void) {
   player->state.unset<PLAYER_ON_OBJECT>();
   for (Uchar i = 0; i < TIME_STEP; ++i) {
@@ -17,9 +25,13 @@ void physics(void) {
       /* If object is a projectile, calculate its next position based on it`s velocity. */
       if (object->flag.is_set<OBJECT_IS_PROJECTILE>()) {
         object->vel.accel_y(GRAVITY, TIME_STEP_S);
+        float  air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - object->pos.y)));
+        float  cross_sectional_area = calculate_cross_sectional_area_box(object->width, object->height);
+        Vector air_resistance = calculate_air_resistance(object->vel, 1.28f, air_density, cross_sectional_area, 10.0f);
+        object->vel.accel(air_resistance.x, air_resistance.y, TIME_STEP_S);
         object->calculate_pos_change(TIME_STEP_S);
         /* When a projectile goes outside view-port unlink it. */
-        if (OBJ_L(object) > window_width || OBJ_T(object) > window_height || OBJ_B(object) < 0 || OBJ_R(object) < 0) {
+        if (OBJ_L(object) > window_width || OBJ_T(object) > window_height || OBJ_R(object) < 0) {
           unlink_object(object);
           continue;
         }
@@ -47,6 +59,7 @@ void physics(void) {
 #define FRICTON        0x03
 
 int main(void) {
+  test();
   init();
   object_create({100, (window_height - 90)}, window_width - 100, 5, {FRICTON, FRICTON}, STATIC, 5);
   object_create({0, (window_height - 5)}, window_width, 5, {}, STATIC, 5);
@@ -58,4 +71,5 @@ int main(void) {
   moving_obj->moving_data.negative = moving_obj->pos;
   engine->run();
   cleanup();
+  
 }

@@ -3,6 +3,7 @@
 #include <Mlib/Array.h>
 #include <Mlib/Flag.h>
 #include <Mlib/Vector.h>
+#include <Mlib/Pair.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_rect.h>
@@ -50,6 +51,16 @@ using std::chrono::time_point;
 #define PIXELS_PER_METER  (100.00f)
 #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
 #define M_TO_PIXEL(m)     (m * PIXELS_PER_METER)
+
+#define SEA_LEVEL_PRESSURE     (101325.0f)  /* Pa */
+#define GAS_CONSTANT_AIR       (287.05f)    /* J/(kg·K) */
+#define TEMPERATURE_LAPSE_RATE (0.0065f)    /* K/m */
+#define SEA_LEVEL_TEMPERATURE  (288.15f)    /* K (15°C) */
+#define MOLAR_MASS_AIR         (0.0289644f) /* kg/mol */
+#define C_TO_KELVIN(c)         (c + 273.15f)
+
+#define FLOAT_MAX std::numeric_limits<float>::max()
+#define FLOAT_MIN std::numeric_limits<float>::lowest()
 
 /* clang-format off */
 
@@ -177,10 +188,6 @@ using std::chrono::time_point;
 #define FLYING_ENABLED        (1 << 6)
 #define JUMP                  (1 << 7)
 
-typedef struct FPointRect {
-  Vector data[5];
-} VectorRect;
-
 /* -------------- */
 /* <<- Object ->> */
 /* -------------- */
@@ -249,7 +256,7 @@ typedef struct PlayerWeaponPart {
   SDL_FPoint points[5];
   SDL_FRect rect;
 
-  void draw(void);
+  void draw(float angle_offset = 0.0f);
 } PlayerWeaponPart;
 
 typedef struct PlayerWeapon {
@@ -358,6 +365,7 @@ typedef struct Renderer {
   /* ------------------------- */
   void set_color(Uchar r, Uchar g, Uchar b, Uchar a);
   void fill_rect(const SDL_Rect *rect);
+  void draw_lines(const SDL_FPoint *const &points, int count);
   void draw_rotated_rect(float cx, float cy, float width, float height, float angle, SDL_FPoint *points);
 } Renderer;
 

@@ -8,26 +8,26 @@ void Renderer::fill_rect(const SDL_Rect *rect) {
   SDL_RenderFillRect(ren, rect);
 }
 
+void Renderer::draw_lines(const SDL_FPoint *const &points, int count) {
+  SDL_RenderDrawLinesF(ren, points, count);
+}
+
 /* clang-format off */
 void Renderer::draw_rotated_rect(float cx, float cy, float width, float height, float angle, SDL_FPoint *points) {
   /* Convert angle to radians. */
-  long double rad = ((long double)angle * (M_PI / 180.0L));
-  long double cos_a = cos(rad);
-  long double sin_a = sin(rad);
+  float rad = (angle * (M_PI / 180.0L));
+  float cos_a = cos(rad);
+  float sin_a = sin(rad);
   /* Calculate half-dimensions. */
-  long double half_w = ((long double)width / 2);
-  long double half_h = ((long double)height / 2);
+  float half_w = (width / 2);
+  float half_h = (height / 2);
   /* Calculate corner positions based on rotation. */
-  /* Top-Left */
-  points[0] = {(float)(cx + ((-half_w * cos_a) - (-half_h * sin_a))), (float)(cy + ((-half_w * sin_a) + (-half_h * cos_a)))};
-  /* Top-Right */    
-  points[1] = {(float)(cx + (( half_w * cos_a) - (-half_h * sin_a))), (float)(cy + (( half_w * sin_a) + (-half_h * cos_a)))};
-  /* Bottom-Right */ 
-  points[2] = {(float)(cx + (( half_w * cos_a) - ( half_h * sin_a))), (float)(cy + (( half_w * sin_a) + ( half_h * cos_a)))};
-  /* Bottom-Left */  
-  points[3] = {(float)(cx + ((-half_w * cos_a) - ( half_h * sin_a))), (float)(cy + ((-half_w * sin_a) + ( half_h * cos_a)))};
+  points[0] = {(cx + ((-half_w * cos_a) - (-half_h * sin_a))), (cy + ((-half_w * sin_a) + (-half_h * cos_a)))};  /* Top-Left */
+  points[1] = {(cx + (( half_w * cos_a) - (-half_h * sin_a))), (cy + (( half_w * sin_a) + (-half_h * cos_a)))};  /* Top-Right */
+  points[2] = {(cx + (( half_w * cos_a) - ( half_h * sin_a))), (cy + (( half_w * sin_a) + ( half_h * cos_a)))};  /* Bottom-Right */ 
+  points[3] = {(cx + ((-half_w * cos_a) - ( half_h * sin_a))), (cy + ((-half_w * sin_a) + ( half_h * cos_a)))};  /* Bottom-Left */  
   /* Close the rectangle. */
   points[4] = points[0];
   /* Draw the rectangle by connecting all lines. */
-  SDL_RenderDrawLinesF(ren, points, 5);
+  draw_lines(points, 5);
 }
