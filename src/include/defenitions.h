@@ -2,8 +2,10 @@
 
 #include <Mlib/Array.h>
 #include <Mlib/Flag.h>
-#include <Mlib/Vector.h>
 #include <Mlib/Pair.h>
+#include <Mlib/MVec2.h>
+#include <Mlib/MVec2.h>
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_rect.h>
@@ -19,7 +21,8 @@
 #include <stdio.h>
 #include <thread>
 
-#include "Vector.h"
+#include "Color.h"
+#include "Particle.h"
 
 using std::function;
 using std::map;
@@ -41,16 +44,19 @@ using std::chrono::time_point;
 #define BLACK 0, 0, 0, 255
 #define WHITE 255, 255, 255, 255
 #define RED   255, 0, 0, 255
+#define GREEN 0, 255, 0, 255
 #define BLUE  0, 0, 255, 255
 
-#define GRAVITY           (9.806650000000001)
+#define GRAY_80              80, 80, 80, 255
+#define GRAY_80_WRED(amount) (Uchar)(80 + amount), 80, 80, 255
+
 #define FPS               (240.00)
 #define FRAMETIME_S       (1.00 / FPS)
 #define TIME_STEP         (40)
 #define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
 #define PIXELS_PER_METER  (100.00f)
 #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
-#define M_TO_PIXEL(m)     (m * PIXELS_PER_METER)
+#define M_TO_PIXEL(m)     ((m) * PIXELS_PER_METER)
 
 #define SEA_LEVEL_PRESSURE     (101325.0f)  /* Pa */
 #define GAS_CONSTANT_AIR       (287.05f)    /* J/(kg·K) */
@@ -58,6 +64,11 @@ using std::chrono::time_point;
 #define SEA_LEVEL_TEMPERATURE  (288.15f)    /* K (15°C) */
 #define MOLAR_MASS_AIR         (0.0289644f) /* kg/mol */
 #define C_TO_KELVIN(c)         (c + 273.15f)
+
+#define STEEL_DENSITY       7850.0f
+#define STEEL_HEAT_CAPACITY 500.0f
+
+#define ROUND_7_62_GRAINS 25.0f
 
 #define FLOAT_MAX std::numeric_limits<float>::max()
 #define FLOAT_MIN std::numeric_limits<float>::lowest()
@@ -188,6 +199,10 @@ using std::chrono::time_point;
 #define FLYING_ENABLED        (1 << 6)
 #define JUMP                  (1 << 7)
 
+typedef struct Camera {
+  MVec2 pos;
+} Camera;
+
 /* -------------- */
 /* <<- Object ->> */
 /* -------------- */
@@ -200,8 +215,8 @@ typedef enum {
 
 typedef struct ObjectMovingData {
   double speed;
-  Vector positive;
-  Vector negative;
+  MVec2 positive;
+  MVec2 negative;
   bool direction;
 } ObjectMovingData;
 
@@ -209,17 +224,19 @@ typedef struct Object {
   /* ------------------- */
   /* <<- Object data ->> */
   /* ------------------- */
-  Vector pos;
-  Vector vel;
-  Vector friction;
-  Vector max_speed;
+  MVec2 pos;
+  MVec2 vel;
+  MVec2 acceleration;
+  MVec2 friction;
+  MVec2 max_speed;
   Ushort width;
   Ushort height;
   Uint   state;
   bit_flag_t<8> flag;
   ObjectMovingData moving_data;
   function<void(void)> collision_action;
-  struct Object *next;
+  Object *next;
+  Object *prev;
 
   /* ----------------------- */
   /* <<- Object method`s ->> */
@@ -249,7 +266,7 @@ typedef enum {
 } PlayerWeaponState;
 
 typedef enum {
-  PLAYER_WEAPON_RIFLE
+  PLAYER_WEAPON_TYPE_AK_47
 } PlayerWeaponType;
 
 typedef struct PlayerWeaponPart {
@@ -265,13 +282,22 @@ typedef struct PlayerWeapon {
   float angle;
 
   PlayerWeaponPart body;
-  PlayerWeaponPart barrel;
-  PlayerWeaponPart magazine;
+
+  struct {
+    SDL_FRect rect;
+    SDL_FPoint points[4];
+    Color color[4];
+    float temp;
+    float length;
+    float mass;
+  } barrel;
   
   void init(void);
+  void equip(PlayerWeaponType weapon);
   void draw_body(void);
   void draw_barrel(void);
   void draw_magazine(void);
+  void draw_handle(void);
   void draw(void);
   void attack(int button);
 } PlayerWeapon;
@@ -305,10 +331,11 @@ typedef struct Player {
   /* ------------------- */
   /* <<- Player data ->> */
   /* ------------------- */
-  Vector pos;
-  Vector vel;
-  Vector accel;
-  Vector max_speed;
+  MVec2 pos;
+  MVec2 vel;
+  MVec2 acceleration;
+  MVec2 accel;
+  MVec2 max_speed;
   float width;
   float height;
   bit_flag_t<8> state;
@@ -322,7 +349,7 @@ typedef struct Player {
   void check_collision_with(const Object *const object) noexcept;
   void check_collisions(void);
   void jump(void) noexcept;
-  void calculate_pos_change(const double delta_t) noexcept;
+  void calculate_pos_change(float delta_t) noexcept;
   void determine_control_direction(void) noexcept;
 } Player;
 
@@ -355,6 +382,9 @@ typedef struct PerformanceData {
 /* <-< Renderer >-> */
 /* ---------------- */
 typedef struct Renderer {
+  /* Types. */
+  typedef enum {TL, TR, BR, BL} RendererCorner;
+
   /* --------------------- */
   /* <-< Renderer data >-> */
   /* --------------------- */
@@ -365,8 +395,14 @@ typedef struct Renderer {
   /* ------------------------- */
   void set_color(Uchar r, Uchar g, Uchar b, Uchar a);
   void fill_rect(const SDL_Rect *rect);
+  void fill_rect(const SDL_FRect *rect);
   void draw_lines(const SDL_FPoint *const &points, int count);
   void draw_rotated_rect(float cx, float cy, float width, float height, float angle, SDL_FPoint *points);
+  void draw_rotated_box(float cx, float cy, float width, float height, float angle,
+                        const Color *colors = nullptr, SDL_FPoint *points = nullptr, SDL_Texture *texture = nullptr);
+  void draw_triangle(SDL_FPoint p1, SDL_FPoint p2, SDL_FPoint p3, const Color *colors = nullptr, SDL_Texture *texture = nullptr);
+  void draw_filled_arc(SDL_FPoint *points, Uint num_points, Color color, const MVec2 &offset, SDL_Texture *texture = nullptr);
+  void draw_quadliteral(const SDL_FPoint points[4], const Color colors[4], SDL_Texture *texture = nullptr);
 } Renderer;
 
 /* ----------------- */
@@ -402,10 +438,15 @@ class Engine {
   SDL_Event _ev;
 
  public:
+  struct {
+    float temp;
+  } enviroment;
+
   bit_flag_t<8> state;
   PerformanceData performance_data;
   Renderer ren;
   MouseData mouse_data;
+  Camera camera;
 
   void frame_start(void);
   void frame_end(void);

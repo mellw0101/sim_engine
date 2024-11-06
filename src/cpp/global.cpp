@@ -11,3 +11,4 @@ Object *objects_head = nullptr;
 Object *objects_tail = nullptr;
 Engine *engine       = nullptr;
 Player *player       = nullptr;
+Cloth *cloth = nullptr; 

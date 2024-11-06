@@ -10,20 +10,22 @@ extern Object       *objects_head;
 extern Object       *objects_tail;
 extern Engine       *engine;
 extern Player       *player;
+extern Cloth *cloth;
 
 /* main.cpp */
 void physics(void);
 
 /* 'vector.c' */
-Vector vector_multi_copy(const Vector *vector, const double scalar);
-Vector vector_multi(Vector *vector, const double scalar);
-Vector vector_add(Vector *vector, const Vector *add);
-void   vector_set_val(Vector *vector, const double x, const double y);
+MVec2 vector_multi_copy(const MVec2 *vector, const double scalar);
+MVec2 vector_multi(MVec2 *vector, const double scalar);
+MVec2 vector_add(MVec2 *vector, const MVec2 *add);
+void   vector_set_val(MVec2 *vector, const double x, const double y);
 
 /* 'object.c' */
-Object *object_create(const Vector &pos, const Ushort width, const Ushort height, const Vector &friction, Uint state,
+Object *object_create(const MVec2 &pos, const Ushort width, const Ushort height, const MVec2 &friction, Uint state,
                       const float max_speed);
 void unlink_object(Object *obj);
+void projectile_collision(Object *projectile, Object *object);
 
 /* 'engine.c' */
 void init(void);

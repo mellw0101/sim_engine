@@ -52,32 +52,32 @@ __constexpr_calc_ret_void calculate_rotated_rect(const SDL_FRect *const rect, MA
   (*points).ARRIDX(4) = (*points).ARRIDX(0);
 }
 
-__constexpr_calc_ret(Vector) calculate_bezier_point(const Vector &p1, const Vector &apex, const Vector &p2, float t) {
+__constexpr_calc_ret(MVec2) calculate_bezier_point(const MVec2 &p1, const MVec2 &apex, const MVec2 &p2, float t) {
   return (p1 * ((1 - t) * (1 - t))) + (apex * (2 * (1 - t) * t)) + (p2 * (t * t));
 }
 
-__constexpr_calc_ret_void calculate_arc_points(const Vector &p1, const Vector &p2, const Vector &apex, SDL_FPoint *points, Uint num_points) {
+__constexpr_calc_ret_void calculate_arc_points(const MVec2 &p1, const MVec2 &p2, const MVec2 &apex, SDL_FPoint *points, Uint num_points) {
   for (Uint i = 0; i < num_points; ++i) {
     float t = ((float)i / (num_points - 1));
-    points[i] = calculate_bezier_point(p1, apex, p2, t).FPoint();
+    points[i] = calculate_bezier_point(p1, apex, p2, t);
   }
 }
 
-__constexpr_calc_ret(Vector) calculate_center_of_two_points(float p1_x, float p1_y, float p2_x, float p2_y) {
+__constexpr_calc_ret(MVec2) calculate_center_of_two_points(float p1_x, float p1_y, float p2_x, float p2_y) {
   return {((p1_x + p2_x) / 2), ((p1_y + p2_y) / 2)};
 }
 
-__constexpr_calc_ret(Vector) calculate_center_of_two_points_offset(const Vector &p1, const Vector &p2, const Vector &offset) {
+__constexpr_calc_ret(MVec2) calculate_center_of_two_points_offset(const MVec2 &p1, const MVec2 &p2, const MVec2 &offset) {
   /* Calculate the center point. */
-  Vector ret = Vector::center(p1, p2);
+  MVec2 ret = MVec2::center(p1, p2);
   if (offset.x) {
     /* Calculate perpendiculat distance to offset. */
-    const Vector distance = (p1.direction_to(p2, true).normalize() *= offset.x);
+    const MVec2 distance = (p1.direction_to(p2, true).normalize() *= offset.x);
     ret += distance;
   }
   if (offset.y) {
     /* Calculate inline distance to offset. */
-    const Vector distance = (p1.direction_to(p2).normalize() *= offset.y);
+    const MVec2 distance = (p1.direction_to(p2).normalize() *= offset.y);
     ret += distance;
   }
   return ret;
@@ -94,13 +94,13 @@ __constexpr_calc_ret(float) calculate_cross_sectional_area_box(float width, floa
   return (width * height);
 }
 
-__constexpr_calc_ret(Vector) calculate_air_resistance(const Vector &velocity, float drag_coefficient, float air_density, float cross_sectional_area, float mass) {
+__constexpr_calc_ret(MVec2) calculate_air_resistance(const MVec2 &velocity, float drag_coefficient, float air_density, float cross_sectional_area, float mass) {
   float speed = velocity.magnitude();
   if (speed == 0.0f) {
     return {0.0f, 0.0f};
   }
   float drag_force = (0.5f * drag_coefficient * air_density * cross_sectional_area * speed * speed);
-  Vector drag_acceleration = velocity.normalize() * (-drag_force / mass);
+  MVec2 drag_acceleration = velocity.normalize() * (-drag_force / mass);
   return drag_acceleration;
 }
 

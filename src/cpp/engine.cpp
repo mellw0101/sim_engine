@@ -74,20 +74,20 @@ void prosses_keys(void) {
   /* Set the appropriet direction based on currently pressed movement buttons. */
   if (state[SDL_SCANCODE_W]) {
     if (player->state.is_set<PLAYER_CAN_FLY>()) {
-      player->vel.accel(0, -player->accel.y, FRAMETIME_S);
+      player->acceleration.y -= player->accel.y;
     }
     player->direction.set<PLAYER_UP>();
   }
   if (state[SDL_SCANCODE_S]) {
-    player->vel.accel(0, player->accel.y, FRAMETIME_S);
+    player->acceleration.y += player->accel.y;
     player->direction.set<PLAYER_DOWN>();
   }
   if (state[SDL_SCANCODE_A]) {
-    player->vel.accel(-player->accel.x, 0, FRAMETIME_S);
+    player->acceleration.x -= player->accel.x;
     player->direction.set<PLAYER_LEFT>();
   }
   if (state[SDL_SCANCODE_D]) {
-    player->vel.accel(player->accel.x, 0, FRAMETIME_S);
+    player->acceleration.x += player->accel.x;
     player->direction.set<PLAYER_RIGHT>();
   }
   /* Make sure only one 'true' direction is */
@@ -105,6 +105,8 @@ void engine_create(void) {
   }
   engine->state.clear();
   engine->mouse_data.state.clear();
+  engine->enviroment.temp = 20.0f;
+  engine->camera.pos = 0.0f;
   engine->add_event_callback(SDL_MOUSEMOTION, [](SDL_Event ev) {
     engine->mouse_data.x = ev.motion.x;
     engine->mouse_data.y = ev.motion.y;
