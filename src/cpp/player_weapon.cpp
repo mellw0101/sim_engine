@@ -33,8 +33,8 @@ void PlayerWeapon::draw_body(void) {
   /* If the rifle is equiped the set the body to the body of the rifle. */
   if (type.is_set<PLAYER_WEAPON_TYPE_AK_47>()) {
     body.rect = {
-      (float)((player->pos.x + (player->width / 2)) + engine->camera.pos.x),
-      (float)((player->pos.y + (player->height / 4)) + +engine->camera.pos.y),
+      (float)((player->data.pos.x + (player->width / 2)) + engine->camera.pos.x),
+      (float)((player->data.pos.y + (player->height / 4)) + +engine->camera.pos.y),
       60,
       14,
     };
@@ -133,8 +133,8 @@ void PlayerWeapon::draw(void) {
 
 void PlayerWeapon::attack(int button) {
   if (!player->weapon.state.is_set<PLAYER_WEAPON_ENABLED>() ||
-      ((engine->mouse_data.x > player->pos.x && engine->mouse_data.x < player->pos.x + player->width) &&
-       (engine->mouse_data.y > player->pos.y && engine->mouse_data.y < player->pos.y + player->height))) {
+      ((engine->mouse_data.x > player->data.pos.x && engine->mouse_data.x < player->data.pos.x + player->width) &&
+       (engine->mouse_data.y > player->data.pos.y && engine->mouse_data.y < player->data.pos.y + player->height))) {
     return;
   }
   if (button == SDL_BUTTON_LEFT) {
@@ -142,7 +142,7 @@ void PlayerWeapon::attack(int button) {
       MVec2   center = MVec2::center_with_offset(MVec2::from(barrel.points[1]) - engine->camera.pos,
                                                  MVec2::from(barrel.points[2]) - engine->camera.pos, {-10, 0});
       Object *bullet = object_create(center, 2, 2, {0, 0}, 0, 0);
-      bullet->vel.set_magnitude_and_angle(700.0f, center.angle_to((engine->mouse_data.x - engine->camera.pos.x),
+      bullet->data.vel.set_magnitude_and_angle(700.0f, center.angle_to((engine->mouse_data.x - engine->camera.pos.x),
                                                                   (engine->mouse_data.y - engine->camera.pos.y)));
       bullet->flag.set<OBJECT_IS_PROJECTILE>();
       if (type.is_set<PLAYER_WEAPON_TYPE_AK_47>()) {

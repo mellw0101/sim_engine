@@ -2,10 +2,12 @@
 
 #include <Mlib/Array.h>
 #include <Mlib/Flag.h>
+#include <Mlib/MVec2.h>
 #include <Mlib/Pair.h>
-#include <Mlib/MVec2.h>
-#include <Mlib/MVec2.h>
+#include <Mlib/openGL/context.h>
+#include <Mlib/openGL/shader.h>
 
+#include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_rect.h>
@@ -31,6 +33,7 @@ using std::chrono::duration;
 using std::chrono::high_resolution_clock;
 using std::chrono::time_point;
 
+inline namespace Defines {
 #define FALSE 0
 #define true  1
 
@@ -73,131 +76,138 @@ using std::chrono::time_point;
 #define FLOAT_MAX std::numeric_limits<float>::max()
 #define FLOAT_MIN std::numeric_limits<float>::lowest()
 
-/* clang-format off */
+  /* clang-format off */
 
-/* Some def`s for calculating things. */
-#define ACCEL(v, a, delta_t) \
-  (v = v + (a * delta_t))
+  /* Some def`s for calculating things. */
+  #define ACCEL(v, a, delta_t) \
+    (v = v + (a * delta_t))
 
-#define POS(p, v, delta_t) \
-  (p = p + (v * delta_t))
+  #define POS(p, v, delta_t) \
+    (p = p + (v * delta_t))
 
-#define MAX(val, max) \
-  (val = (val > max) ? max : val)
+  #define MAX(val, max) \
+    (val = (val > max) ? max : val)
 
-#define MIN(val, min) \
-  ((val < min) ? (val = min) : 0)
+  #define MIN(val, min) \
+    ((val < min) ? (val = min) : 0)
 
-#define CLAMP(val, min, max) \
-  ((val < min) ? (val = min) : (val > max) ? (val = max) : 0)
+  #define CLAMP(val, min, max) \
+    ((val < min) ? (val = min) : (val > max) ? (val = max) : 0)
 
-#define RADIANT_F(angle) \
-  (angle * (M_PI / 180.0f))
+  #define RADIANT_F(angle) \
+    (angle * (M_PI / 180.0f))
 
-#define RADIANT_LD(angle) \
-  (angle * (M_PI / 180.0L))
+  #define RADIANT_LD(angle) \
+    (angle * (M_PI / 180.0L))
 
-/* Def`s to help with objects. */
+  /* Def`s to help with objects. */
 
-/* If condition is 'true' then set value to 0.00. */
-#define CONSTRAIN_VEL_IF(cond, val) \
-  (cond ? (val = 0.00) : 0)
+  /* If condition is 'true' then set value to 0.00. */
+  #define CONSTRAIN_VEL_IF(cond, val) \
+    (cond ? (val = 0.00) : 0)
 
-/* This macro is used to confine an object within a reqtangle. */
-#define HIT_WALL(o, min_x, max_x, min_y, max_y) \
-  CLAMP((o)->pos.x, min_x, max_x);                                           \
-  ((o)->pos.x == min_x) ? ((o)->vel.x < 0.00) ? ((o)->vel.x = 0.00) : 0 : 0; \
-  ((o)->pos.x == max_x) ? ((o)->vel.x > 0.00) ? ((o)->vel.x = 0.00) : 0 : 0; \
-  CLAMP((o)->pos.y, min_y, max_y);                                           \
-  ((o)->pos.y == min_y) ? ((o)->vel.y < 0.00) ? ((o)->vel.y = 0.00) : 0 : 0; \
-  ((o)->pos.y == max_y) ? ((o)->vel.y > 0.00) ? ((o)->vel.y = 0.00) : 0 : 0
+  /* This macro is used to confine an object within a reqtangle. */
+  #define HIT_WALL(o, min_x, max_x, min_y, max_y) \
+    CLAMP((o)->data.pos.x, min_x, max_x);                                           \
+    ((o)->data.pos.x == min_x) ? ((o)->data.vel.x < 0.00) ? ((o)->data.vel.x = 0.00) : 0 : 0; \
+    ((o)->data.pos.x == max_x) ? ((o)->data.vel.x > 0.00) ? ((o)->data.vel.x = 0.00) : 0 : 0; \
+    CLAMP((o)->data.pos.y, min_y, max_y);                                           \
+    ((o)->data.pos.y == min_y) ? ((o)->data.vel.y < 0.00) ? ((o)->data.vel.y = 0.00) : 0 : 0; \
+    ((o)->data.pos.y == max_y) ? ((o)->data.vel.y > 0.00) ? ((o)->data.vel.y = 0.00) : 0 : 0
 
-#define PRINT_VEL_POS(vx, vy, px, py) \
-  printf("Vel:(%lf m/s, %lf m/s) Pos:(%lf x, %lf y).\n", vx, vy, px, py)
+  #define PRINT_VEL_POS(vx, vy, px, py) \
+    printf("Vel:(%lf m/s, %lf m/s) Pos:(%lf x, %lf y).\n", vx, vy, px, py)
 
-#define PRINT_OBJ_VEL_POS(o) \
-  PRINT_VEL_POS((o)->vel.x, (o)->vel.y, (o)->pos.x, (o)->pos.y)
+  #define PRINT_OBJ_VEL_POS(o) \
+    PRINT_VEL_POS((o)->vel.x, (o)->vel.y, (o)->pos.x, (o)->pos.y)
 
-#define PRINT_ACCEL_POINT(p) \
-  printf("Point:(%lf pix/s, %lf pix/s, time: %lf).\n", p->vel.x, p->vel.y, p->time)
+  #define PRINT_ACCEL_POINT(p) \
+    printf("Point:(%lf pix/s, %lf pix/s, time: %lf).\n", p->vel.x, p->vel.y, p->time)
 
-#define OBJ_L(o) ((o)->pos.x)
-#define OBJ_R(o) ((o)->pos.x + (o)->width)
-#define OBJ_T(o) ((o)->pos.y)
-#define OBJ_B(o) ((o)->pos.y + (o)->height)
+  #define OBJ_L(o) ((o)->data.pos.x)
+  #define OBJ_R(o) ((o)->data.pos.x + (o)->width)
+  #define OBJ_T(o) ((o)->data.pos.y)
+  #define OBJ_B(o) ((o)->data.pos.y + (o)->height)
 
-#define OBJECTS_COLLIDING(o, so) \
-  OBJ_R(o) >= OBJ_L(so) && \
-  OBJ_L(o) <= OBJ_R(so) && \
-  OBJ_B(o) >= OBJ_T(so) && \
-  OBJ_T(o) <= OBJ_B(so)
+  #define OBJECTS_COLLIDING(o, so) \
+    OBJ_R(o) >= OBJ_L(so) && \
+    OBJ_L(o) <= OBJ_R(so) && \
+    OBJ_B(o) >= OBJ_T(so) && \
+    OBJ_T(o) <= OBJ_B(so)
 
-#define OBJ_OVERLAP_L(o, so) (OBJ_R(o)  - OBJ_L(so))
-#define OBJ_OVERLAP_R(o, so) (OBJ_R(so) - OBJ_L(o))
-#define OBJ_OVERLAP_T(o, so) (OBJ_B(o)  - OBJ_T(so))
-#define OBJ_OVERLAP_B(o, so) (OBJ_B(so) - OBJ_T(o))
+  #define OBJ_OVERLAP_L(o, so) (OBJ_R(o)  - OBJ_L(so))
+  #define OBJ_OVERLAP_R(o, so) (OBJ_R(so) - OBJ_L(o))
+  #define OBJ_OVERLAP_T(o, so) (OBJ_B(o)  - OBJ_T(so))
+  #define OBJ_OVERLAP_B(o, so) (OBJ_B(so) - OBJ_T(o))
 
-#define PRINT_OVERLAP(o, so) \
-  printf("OBJ_OVERLAP_L: %f, OBJ_OVERLAP_R: %f, OBJ_OVERLAP_T: %f, OBJ_OVERLAP_B: %f.\n", \
-          OBJ_OVERLAP_L(o, so), OBJ_OVERLAP_R(o, so), OBJ_OVERLAP_T(o, so), OBJ_OVERLAP_B(o, so))
+  #define PRINT_OVERLAP(o, so) \
+    printf("OBJ_OVERLAP_L: %f, OBJ_OVERLAP_R: %f, OBJ_OVERLAP_T: %f, OBJ_OVERLAP_B: %f.\n", \
+            OBJ_OVERLAP_L(o, so), OBJ_OVERLAP_R(o, so), OBJ_OVERLAP_T(o, so), OBJ_OVERLAP_B(o, so))
 
-#define OBJ_OVERLAP_LEAST_L(o, so) \
-  OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_R(o, so) && \
-  OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_T(o, so) && \
-  OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_B(o, so)
+  #define OBJ_OVERLAP_LEAST_L(o, so) \
+    OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_R(o, so) && \
+    OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_T(o, so) && \
+    OBJ_OVERLAP_L(o, so) < OBJ_OVERLAP_B(o, so)
 
-#define OBJ_OVERLAP_LEAST_R(o, so) \
-  OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_L(o, so) && \
-  OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_T(o, so) && \
-  OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_B(o, so)
+  #define OBJ_OVERLAP_LEAST_R(o, so) \
+    OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_L(o, so) && \
+    OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_T(o, so) && \
+    OBJ_OVERLAP_R(o, so) < OBJ_OVERLAP_B(o, so)
 
-#define OBJ_OVERLAP_LEAST_T(o, so) \
-  OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_B(o, so) && \
-  OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_L(o, so) && \
-  OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_R(o, so)
+  #define OBJ_OVERLAP_LEAST_T(o, so) \
+    OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_B(o, so) && \
+    OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_L(o, so) && \
+    OBJ_OVERLAP_T(o, so) < OBJ_OVERLAP_R(o, so)
 
-#define OBJ_OVERLAP_LEAST_B(o, so) \
-  OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_T(o, so) && \
-  OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_L(o, so) && \
-  OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_R(o, so)
+  #define OBJ_OVERLAP_LEAST_B(o, so) \
+    OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_T(o, so) && \
+    OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_L(o, so) && \
+    OBJ_OVERLAP_B(o, so) < OBJ_OVERLAP_R(o, so)
 
-#define IS_ON_STATIC_OBJECT(o) \
-  for (Object *so = object_head; so; so = so->next) { \
-    if ((o == so) || (so->state & STATIC) == FALSE) { \
-      continue;                                       \
-    }                                                 \
-    if (OBJECTS_COLLIDING(o, so)) {                   \
-      if (OBJ_OVERLAP_LEAST_T(o, so)) {               \
-        ((o)->state |= ON_STATIC_OBJECT);             \
-      }                                               \
-      else if (OBJ_OVERLAP_LEAST_B(o, so)) {          \
-        (o)->state &= ~ON_STATIC_OBJECT;              \
-      }                                               \
-      else if (OBJ_OVERLAP_LEAST_L(o, so)) {          \
-        (o)->state &= ~ON_STATIC_OBJECT;              \
-      }                                               \
-      else if (OBJ_OVERLAP_LEAST_R(o, so)) {          \
-        (o)->state &= ~ON_STATIC_OBJECT;              \
-      }                                               \
-    }                                                 \
-  }
+  #define IS_ON_STATIC_OBJECT(o) \
+    for (Object *so = object_head; so; so = so->next) { \
+      if ((o == so) || (so->state & STATIC) == FALSE) { \
+        continue;                                       \
+      }                                                 \
+      if (OBJECTS_COLLIDING(o, so)) {                   \
+        if (OBJ_OVERLAP_LEAST_T(o, so)) {               \
+          ((o)->state |= ON_STATIC_OBJECT);             \
+        }                                               \
+        else if (OBJ_OVERLAP_LEAST_B(o, so)) {          \
+          (o)->state &= ~ON_STATIC_OBJECT;              \
+        }                                               \
+        else if (OBJ_OVERLAP_LEAST_L(o, so)) {          \
+          (o)->state &= ~ON_STATIC_OBJECT;              \
+        }                                               \
+        else if (OBJ_OVERLAP_LEAST_R(o, so)) {          \
+          (o)->state &= ~ON_STATIC_OBJECT;              \
+        }                                               \
+      }                                                 \
+    }
 
-/* Itherate thrue all objects. */
-#define FOR_EACH_OBJECT(name) \
-  for (Object *name = objects_head; name; name = name->next)
+  /* Itherate thrue all objects. */
+  #define FOR_EACH_OBJECT(name) \
+    for (Object *name = objects_head; name; name = name->next)
 
-#define OBJECT_MOVING_POSITIVE true
-#define OBJECT_MOVING_NEGATIVE false
+  #define OBJECT_MOVING_POSITIVE true
+  #define OBJECT_MOVING_NEGATIVE false
 
-#define NO_STATE              0
-#define STATIC                (1 << 0)
-#define ON_STATIC_OBJECT      (1 << 1)
-#define INCREACE_MAX_SPEED    (1 << 2)
-#define DECREACE_MAX_SPEED    (1 << 3)
-#define INCREACE_ACCELERATION (1 << 4)
-#define DECREACE_ACCELERATION (1 << 5)
-#define FLYING_ENABLED        (1 << 6)
-#define JUMP                  (1 << 7)
+  #define NO_STATE              0
+  #define STATIC                (1 << 0)
+  #define ON_STATIC_OBJECT      (1 << 1)
+  #define INCREACE_MAX_SPEED    (1 << 2)
+  #define DECREACE_MAX_SPEED    (1 << 3)
+  #define INCREACE_ACCELERATION (1 << 4)
+  #define DECREACE_ACCELERATION (1 << 5)
+  #define FLYING_ENABLED        (1 << 6)
+  #define JUMP                  (1 << 7)
+}
+
+typedef struct {
+  MVec2 pos;
+  MVec2 vel;
+  MVec2 accel;
+} PosData;
 
 typedef struct Camera {
   MVec2 pos;
@@ -224,9 +234,7 @@ typedef struct Object {
   /* ------------------- */
   /* <<- Object data ->> */
   /* ------------------- */
-  MVec2 pos;
-  MVec2 vel;
-  MVec2 acceleration;
+  PosData data;
   MVec2 friction;
   MVec2 max_speed;
   Ushort width;
@@ -331,9 +339,7 @@ typedef struct Player {
   /* ------------------- */
   /* <<- Player data ->> */
   /* ------------------- */
-  MVec2 pos;
-  MVec2 vel;
-  MVec2 acceleration;
+  PosData data;
   MVec2 accel;
   MVec2 max_speed;
   float width;
@@ -452,6 +458,7 @@ class Engine {
   void frame_end(void);
   void poll_events(void);
   void prosses_key_states(void);
+  void do_compute(void);
   void run(void);
 
   template <typename Callback>

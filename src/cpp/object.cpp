@@ -7,8 +7,8 @@ Object *object_create(const MVec2 &pos, const Ushort width, const Ushort height,
     fprintf(stderr, "Failed to malloc Object.\n");
     return nullptr;
   }
-  obj->pos         = pos;
-  obj->vel         = 0;
+  obj->data.pos    = pos;
+  obj->data.vel    = 0;
   obj->width       = width;
   obj->height      = height;
   obj->friction    = friction;
@@ -24,8 +24,8 @@ Object *object_create(const MVec2 &pos, const Ushort width, const Ushort height,
   }
   else {
     objects_tail->next = obj;
-    obj->prev    = objects_tail;
-    objects_tail = objects_tail->next;
+    obj->prev          = objects_tail;
+    objects_tail       = objects_tail->next;
   }
   return obj;
 }
@@ -57,32 +57,32 @@ void projectile_collision(Object *projectile, Object *object) {
   }
 }
 
-
 void Object::draw(void) {
   engine->ren.set_color(RED);
-  const SDL_FRect r {(pos.x + engine->camera.pos.x), (pos.y + engine->camera.pos.y), (float)width, (float)height};
+  const SDL_FRect r {
+    (data.pos.x + engine->camera.pos.x), (data.pos.y + engine->camera.pos.y), (float)width, (float)height};
   SDL_RenderFillRectF(engine->ren.ren, &r);
 }
 
 void Object::move(void) noexcept {
   /* Positive. */
   if (moving_data.direction) {
-    pos += (moving_data.speed / 100);
-    pos.constrain(true, moving_data.positive);
-    if (pos == moving_data.positive) {
+    data.pos += (moving_data.speed / 100);
+    data.pos.constrain(true, moving_data.positive);
+    if (data.pos == moving_data.positive) {
       moving_data.direction = false;
     }
   }
   /* Negative. */
   else {
-    pos -= (moving_data.speed / 100);
-    pos.constrain(false, moving_data.negative);
-    if (pos == moving_data.negative) {
+    data.pos -= (moving_data.speed / 100);
+    data.pos.constrain(false, moving_data.negative);
+    if (data.pos == moving_data.negative) {
       moving_data.direction = true;
     }
   }
 }
 
 void Object::calculate_pos_change(float delta_t) noexcept {
-  pos += {(M_TO_PIXEL(vel.x) * delta_t), (M_TO_PIXEL(vel.y) * delta_t)};
+  data.pos += {(M_TO_PIXEL(data.vel.x) * delta_t), (M_TO_PIXEL(data.vel.y) * delta_t)};
 }

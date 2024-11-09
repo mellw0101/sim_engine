@@ -10,7 +10,7 @@ void init(void) {
   }
   win = SDL_CreateWindow(window_title ? window_title : "placeholder", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                          window_width, window_height,
-                         SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MAXIMIZED);
+                         SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_OPENGL);
   if (!win) {
     SDL_Quit();
     fprintf(stderr, "Failed to create win.\n");
@@ -26,6 +26,10 @@ void init(void) {
     SDL_Quit();
     fprintf(stderr, "Failed to create 'engine->ren.ren'.\n");
     exit(1);
+  }
+  context = openGL_init_SDL_GLContext(win, true);
+  if (!context) {
+    cleanup();
   }
   engine->state.set<ENGINE_RUNNING>();
 }
@@ -74,20 +78,20 @@ void prosses_keys(void) {
   /* Set the appropriet direction based on currently pressed movement buttons. */
   if (state[SDL_SCANCODE_W]) {
     if (player->state.is_set<PLAYER_CAN_FLY>()) {
-      player->acceleration.y -= player->accel.y;
+      player->data.accel.y -= player->accel.y;
     }
     player->direction.set<PLAYER_UP>();
   }
   if (state[SDL_SCANCODE_S]) {
-    player->acceleration.y += player->accel.y;
+    player->data.accel.y += player->accel.y;
     player->direction.set<PLAYER_DOWN>();
   }
   if (state[SDL_SCANCODE_A]) {
-    player->acceleration.x -= player->accel.x;
+    player->data.accel.x -= player->accel.x;
     player->direction.set<PLAYER_LEFT>();
   }
   if (state[SDL_SCANCODE_D]) {
-    player->acceleration.x += player->accel.x;
+    player->data.accel.x += player->accel.x;
     player->direction.set<PLAYER_RIGHT>();
   }
   /* Make sure only one 'true' direction is */
@@ -164,6 +168,15 @@ void Engine::poll_events(void) {
       func(_ev);
     }
   }
+}
+
+void Engine::do_compute(void) {
+  compute_buffer.resize(0);
+  compute_buffer.push_back(player->data);
+  input_compute_buffer();
+  dispatch_compute_shader();
+  retrieve_compute_buffer();
+  player->data = compute_buffer[0];
 }
 
 void Engine::run(void) {

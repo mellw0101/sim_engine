@@ -13,10 +13,10 @@ void physics(void) {
       }
       /* If object is a projectile, calculate its next position based on it`s velocity. */
       if (object->flag.is_set<OBJECT_IS_PROJECTILE>()) {
-        float  air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - object->pos.y)));
+        float  air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - object->data.pos.y)));
         float  cross_sectional_area = calculate_cross_sectional_area_box(object->width, object->height);
-        MVec2 air_resistance = calculate_air_resistance(object->vel, 0.8f, air_density, cross_sectional_area, 10.0f);
-        rk4_step(&object->pos, &object->vel, TIME_STEP_S, (air_resistance + gravity_vector));
+        MVec2 air_resistance = calculate_air_resistance(object->data.vel, 0.8f, air_density, cross_sectional_area, 10.0f);
+        rk4_step(&object->data.pos, &object->data.vel, TIME_STEP_S, (air_resistance + gravity_vector));
         /* When a projectile goes outside view-port unlink it. */
         if (OBJ_L(object) > window_width || OBJ_T(object) > window_height || OBJ_R(object) < 0) {
           unlink_object(object);
@@ -29,12 +29,12 @@ void physics(void) {
       }
     }
     /* Now we calculate the next pos of player based on the player`s velocity. */
-    rk4_step(&player->pos, &player->vel, TIME_STEP_S, (player->acceleration + gravity_vector));
+    rk4_step(&player->data.pos, &player->data.vel, TIME_STEP_S, (player->data.accel + gravity_vector));
   }
-  if (player->pos.x > (window_width / 2)) {
-    engine->camera.pos.x = ((window_width / 2) - player->pos.x);
+  if (player->data.pos.x > (window_width / 2)) {
+    engine->camera.pos.x = ((window_width / 2) - player->data.pos.x);
   }
-  player->acceleration = 0;
+  player->data.accel = 0.0f;
   if (player->state.is_set<PLAYER_JUMPING>()) {
     player->jump();
   }
@@ -66,8 +66,8 @@ int main(void) {
   moving_obj->flag.set<OBJECT_MOVING>();
   moving_obj->moving_data.direction = OBJECT_MOVING_POSITIVE;
   moving_obj->moving_data.speed     = 1;
-  moving_obj->moving_data.positive.set(moving_obj->pos.x, moving_obj->pos.y + 100);
-  moving_obj->moving_data.negative = moving_obj->pos;
+  moving_obj->moving_data.positive.set(moving_obj->data.pos.x, moving_obj->data.pos.y + 100);
+  moving_obj->moving_data.negative = moving_obj->data.pos;
   engine->run();
   cleanup();
 }

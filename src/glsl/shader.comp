@@ -1,0 +1,49 @@
+#version 450 core
+
+layout(local_size_x = 1) in;
+
+uniform vec2 c_force;
+uniform float delta_t;
+
+uniform float pix_per_m;
+#define M_TO_PIX(m) ((m) * pix_per_m)
+
+struct PosData {
+  vec2 pos;
+  vec2 vel;
+  vec2 accel;
+};
+
+layout(std430, binding = 0) buffer PosDataBuffer {
+  PosData posdata[];
+};
+
+// Perform`s a rk4 step to a Particle over a set time.
+void rk4_step(inout vec2 pos, inout vec2 vel, float dt, vec2 f) {
+  // Calculate force.
+  vec2 force = (f * dt); 
+  // K1 pos.
+  float k1_x = (vel.x * dt);
+  float k1_y = (vel.y * dt);
+  // K2 pos.
+  float k2_x = ((vel.x + 0.5 * force.x) * dt);
+  float k2_y = ((vel.y + 0.5 * force.y) * dt);
+  // K3 pos.
+  float k3_x = ((vel.x + 0.5 * force.x) * dt);
+  float k3_y = ((vel.y + 0.5 * force.y) * dt);
+  // K4 pos.
+  float k4_x = ((vel.x + force.x) * dt);
+  float k4_y = ((vel.y + force.y) * dt);
+  // Update pos.
+  pos.x += M_TO_PIX((k1_x + 2.0 * k2_x + 2.0 * k3_x + k4_x) / 6.0);
+  pos.y += M_TO_PIX((k1_y + 2.0 * k2_y + 2.0 * k3_y + k4_y) / 6.0);
+  // Update vel.
+  vel.x += ((force.x + 2.0 * force.x + 2.0 * force.x + force.x) / 6.0);
+  vel.y += ((force.y + 2.0 * force.y + 2.0 * force.y + force.y) / 6.0);
+}
+
+void main() {
+  uint idx = gl_GlobalInvocationID.x;
+  // rk4_step(posdata[idx].pos, posdata[idx].vel, delta_t, (c_force + posdata[idx].accel));
+  posdata[idx].pos.y += 1.0;
+}
