@@ -31,6 +31,10 @@ void init(void) {
   if (!context) {
     cleanup();
   }
+  compute.init("src/kernel.cl", "rk4_step");
+  // projectile.push_back({});
+  // cl_projectile_buf = compute.create_buffer_at_idx(0, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, projectile.data(), projectile.size());
+  // cl_dt = compute.create_buffer_at_idx(1, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &dt_val, 1);
   engine->state.set<ENGINE_RUNNING>();
 }
 
@@ -142,7 +146,7 @@ void Engine::frame_start(void) {
 void Engine::frame_end(void) {
   time_point<high_resolution_clock> end            = high_resolution_clock::now();
   duration<double, milli>           frame_duration = end - _frame_st;
-  if (performance_data.framecount > 100) {
+  if (performance_data.framecount > 1000) {
     performance_data.frametime.data.push_back(frame_duration.count());
   }
   if (frame_duration.count() >= (1000 / FPS)) {

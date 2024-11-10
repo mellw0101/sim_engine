@@ -19,6 +19,11 @@ extern Player *player;
 extern Cloth  *cloth;
 
 extern MVector<Projectile> projectile;
+extern ClComputeProgram compute;
+extern cl_mem cl_projectile_buf;
+extern float dt_val;
+extern cl_mem cl_dt;
+extern Uint max_projectiles;
 
 /* main.cpp */
 void physics(void);
@@ -34,6 +39,7 @@ Object *object_create(const MVec2 &pos, const Ushort width, const Ushort height,
                       const float max_speed);
 void    unlink_object(Object *obj);
 void projectile_collisions(void);
+void projectile_rk4_step(float delta_t);
 
 /* 'engine.c' */
 void init(void);

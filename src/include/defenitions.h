@@ -7,6 +7,7 @@
 #include <Mlib/openGL/context.h>
 #include <Mlib/openGL/shader.h>
 #include <Mlib/simd.h>
+#include <Mlib/CL/compute.h>
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -37,49 +38,49 @@ using std::chrono::high_resolution_clock;
 using std::chrono::time_point;
 
 inline namespace Defines {
-#define FALSE 0
-#define true  1
-
-#define Uchar  unsigned char
-#define Ushort unsigned short
-#define Uint   unsigned int
-#define Ulong  unsigned long
-
-#define __attr_const __attribute((const))
-
-#define BLACK 0, 0, 0, 255
-#define WHITE 255, 255, 255, 255
-#define RED   255, 0, 0, 255
-#define GREEN 0, 255, 0, 255
-#define BLUE  0, 0, 255, 255
-
-#define GRAY_80              80, 80, 80, 255
-#define GRAY_80_WRED(amount) (Uchar)(80 + amount), 80, 80, 255
-
-#define FPS               (240.00)
-#define FRAMETIME_S       (1.00 / FPS)
-#define TIME_STEP         (40)
-#define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
-#define PIXELS_PER_METER  (100.00f)
-#define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
-#define M_TO_PIXEL(m)     ((m) * PIXELS_PER_METER)
-
-#define SEA_LEVEL_PRESSURE     (101325.0f)  /* Pa */
-#define GAS_CONSTANT_AIR       (287.05f)    /* J/(kg·K) */
-#define TEMPERATURE_LAPSE_RATE (0.0065f)    /* K/m */
-#define SEA_LEVEL_TEMPERATURE  (288.15f)    /* K (15°C) */
-#define MOLAR_MASS_AIR         (0.0289644f) /* kg/mol */
-#define C_TO_KELVIN(c)         (c + 273.15f)
-
-#define STEEL_DENSITY       7850.0f
-#define STEEL_HEAT_CAPACITY 500.0f
-
-#define ROUND_7_62_GRAINS 25.0f
-
-#define FLOAT_MAX std::numeric_limits<float>::max()
-#define FLOAT_MIN std::numeric_limits<float>::lowest()
-
   /* clang-format off */
+  #define FALSE 0
+  #define true  1
+
+  #define Uchar  unsigned char
+  #define Ushort unsigned short
+  #define Uint   unsigned int
+  #define Ulong  unsigned long
+
+  #define __attr_const __attribute((const))
+
+  #define BLACK 0, 0, 0, 255
+  #define WHITE 255, 255, 255, 255
+  #define RED   255, 0, 0, 255
+  #define GREEN 0, 255, 0, 255
+  #define BLUE  0, 0, 255, 255
+
+  #define GRAY_80              80, 80, 80, 255
+  #define GRAY_80_WRED(amount) (Uchar)(80 + amount), 80, 80, 255
+
+  #define FPS               (240.00)
+  #define FRAMETIME_S       (1.00 / FPS)
+  #define TIME_STEP         (1)
+  #define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
+  #define PIXELS_PER_METER  (100.00f)
+  #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
+  #define M_TO_PIXEL(m)     ((m) * PIXELS_PER_METER)
+
+  #define SEA_LEVEL_PRESSURE     (101325.0f)  /* Pa */
+  #define GAS_CONSTANT_AIR       (287.05f)    /* J/(kg·K) */
+  #define TEMPERATURE_LAPSE_RATE (0.0065f)    /* K/m */
+  #define SEA_LEVEL_TEMPERATURE  (288.15f)    /* K (15°C) */
+  #define MOLAR_MASS_AIR         (0.0289644f) /* kg/mol */
+  #define C_TO_KELVIN(c)         (c + 273.15f)
+
+  #define STEEL_DENSITY       7850.0f
+  #define STEEL_HEAT_CAPACITY 500.0f
+
+  #define ROUND_7_62_GRAINS 25.0f
+
+  #define FLOAT_MAX std::numeric_limits<float>::max()
+  #define FLOAT_MIN std::numeric_limits<float>::lowest()
+
 
   /* Some def`s for calculating things. */
   #define ACCEL(v, a, delta_t) \

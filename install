@@ -1,4 +1,4 @@
 #!/bin/bash
 
 AmakeCpp --test
-AmakeCpp --link -lSDL2 -lSDL2_ttf -lGLEW -lGL /usr/lib/Mlib.a
+AmakeCpp --link -lSDL2 -lSDL2_ttf -lGLEW -lGL -lOpenCL /usr/lib/Mlib.a

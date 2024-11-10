@@ -19,3 +19,9 @@ Player *player       = nullptr;
 Cloth  *cloth        = nullptr;
 
 MVector<Projectile> projectile;
+
+ClComputeProgram compute;
+cl_mem cl_projectile_buf;
+float dt_val = TIME_STEP_S;
+cl_mem cl_dt;
+Uint max_projectiles = 1000;
