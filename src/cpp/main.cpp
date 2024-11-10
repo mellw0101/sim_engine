@@ -2,6 +2,26 @@
 
 void physics(void) {
   player->state.unset<PLAYER_ON_OBJECT>();
+  for (Uint ts = 0; ts < TIME_STEP; ++ts) {
+    for (Uint i = 0; i < projectile.size(); ++i) {
+      /* Draw projectile. */
+      SDL_SetRenderDrawColor(engine->ren.ren, RED);
+      SDL_FRect r = {projectile[i].data.pos.x, projectile[i].data.pos.y, projectile[i].width, projectile[i].height};
+      engine->ren.fill_rect(&r);
+      /* Calculate air resistance. */
+      float  air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - projectile[i].data.pos.y)));
+      float  cross_sectional_area = calculate_cross_sectional_area_box(projectile[i].width, projectile[i].height);
+      MVec2 air_resistance = calculate_air_resistance(projectile[i].data.vel, 0.8f, air_density, cross_sectional_area, 10.0f);
+      /* Perform rk4 step. */
+      rk4_step(&projectile[i].data.pos, &projectile[i].data.vel, TIME_STEP_S, (air_resistance + gravity_vector));
+      /* When a projectile goes outside view-port remove it. */
+      if (OBJ_L(&projectile[i]) > window_width || OBJ_T(&projectile[i]) > window_height || OBJ_R(&projectile[i]) < 0) {
+        projectile.erase_at(projectile.index_of(&projectile[i]));
+        continue;
+      }
+    }
+    projectile_collisions();
+  }
   /* Apply acceleration due to gravity. */
   for (Uchar i = 0; i < TIME_STEP; ++i) {
     /* Constrain the player inside the window for now. */
@@ -11,22 +31,7 @@ void physics(void) {
       if (object->flag.is_set<OBJECT_MOVING>()) {
         object->move();
       }
-      /* If object is a projectile, calculate its next position based on it`s velocity. */
-      if (object->flag.is_set<OBJECT_IS_PROJECTILE>()) {
-        float  air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - object->data.pos.y)));
-        float  cross_sectional_area = calculate_cross_sectional_area_box(object->width, object->height);
-        MVec2 air_resistance = calculate_air_resistance(object->data.vel, 0.8f, air_density, cross_sectional_area, 10.0f);
-        rk4_step(&object->data.pos, &object->data.vel, TIME_STEP_S, (air_resistance + gravity_vector));
-        /* When a projectile goes outside view-port unlink it. */
-        if (OBJ_L(object) > window_width || OBJ_T(object) > window_height || OBJ_R(object) < 0) {
-          unlink_object(object);
-          continue;
-        }
-      }
-      /* Otherwise check if player is coliding with object. */
-      else {
-        player->check_collision_with(object);
-      }
+      player->check_collision_with(object);
     }
     /* Now we calculate the next pos of player based on the player`s velocity. */
     rk4_step(&player->data.pos, &player->data.vel, TIME_STEP_S, (player->data.accel + gravity_vector));

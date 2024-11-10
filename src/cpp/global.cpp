@@ -17,3 +17,5 @@ Object *objects_tail = nullptr;
 Engine *engine       = nullptr;
 Player *player       = nullptr;
 Cloth  *cloth        = nullptr;
+
+MVector<Projectile> projectile;

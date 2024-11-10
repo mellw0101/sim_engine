@@ -18,6 +18,8 @@ extern Engine *engine;
 extern Player *player;
 extern Cloth  *cloth;
 
+extern MVector<Projectile> projectile;
+
 /* main.cpp */
 void physics(void);
 
@@ -31,7 +33,7 @@ void  vector_set_val(MVec2 *vector, const double x, const double y);
 Object *object_create(const MVec2 &pos, const Ushort width, const Ushort height, const MVec2 &friction, Uint state,
                       const float max_speed);
 void    unlink_object(Object *obj);
-void    projectile_collision(Object *projectile, Object *object);
+void projectile_collisions(void);
 
 /* 'engine.c' */
 void init(void);

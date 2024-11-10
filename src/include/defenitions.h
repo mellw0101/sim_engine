@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <thread>
+#include <immintrin.h> // AVX intrinsics
 
 #include "Color.h"
 #include "Particle.h"
@@ -264,6 +265,13 @@ typedef struct Object {
   }
 } Object;
 
+/* Projectile */
+typedef struct {
+  PosData data;
+  float width;
+  float height;
+} Projectile;
+
 /* -------------------- */
 /* <<- PlayerWeapon ->> */
 /* -------------------- */
@@ -458,7 +466,6 @@ class Engine {
   void frame_end(void);
   void poll_events(void);
   void prosses_key_states(void);
-  void do_compute(void);
   void run(void);
 
   template <typename Callback>

@@ -170,15 +170,6 @@ void Engine::poll_events(void) {
   }
 }
 
-void Engine::do_compute(void) {
-  compute_buffer.resize(0);
-  compute_buffer.push_back(player->data);
-  input_compute_buffer();
-  dispatch_compute_shader();
-  retrieve_compute_buffer();
-  player->data = compute_buffer[0];
-}
-
 void Engine::run(void) {
   while (state.is_set<ENGINE_RUNNING>()) {
     frame_start();

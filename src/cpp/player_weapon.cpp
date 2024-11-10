@@ -141,10 +141,13 @@ void PlayerWeapon::attack(int button) {
     if (player->weapon.state.is_set<PLAYER_WEAPON_FOLLOWS_MOUSE>()) {
       MVec2   center = MVec2::center_with_offset(MVec2::from(barrel.points[1]) - engine->camera.pos,
                                                  MVec2::from(barrel.points[2]) - engine->camera.pos, {-10, 0});
-      Object *bullet = object_create(center, 2, 2, {0, 0}, 0, 0);
-      bullet->data.vel.set_magnitude_and_angle(700.0f, center.angle_to((engine->mouse_data.x - engine->camera.pos.x),
-                                                                  (engine->mouse_data.y - engine->camera.pos.y)));
-      bullet->flag.set<OBJECT_IS_PROJECTILE>();
+      Projectile b;
+      b.data.pos = {center.x + engine->camera.pos.x, center.y + engine->camera.pos.y};
+      b.data.vel.set_magnitude_and_angle(700.0f, center.angle_to((engine->mouse_data.x - engine->camera.pos.x),
+                                                                  (engine->mouse_data.y - engine->camera.pos.y))); 
+      b.width = 2.0f;
+      b.height = 2.0f;
+      projectile.push_back(b);
       if (type.is_set<PLAYER_WEAPON_TYPE_AK_47>()) {
         barrel.temp += single_shot_temp_increace(
           smokeless_gunpowder_energy(ROUND_7_62_GRAINS), 0.35f, heat_capacity(barrel.mass, STEEL_HEAT_CAPACITY));
