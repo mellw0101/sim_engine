@@ -6,6 +6,7 @@
 #include <Mlib/Pair.h>
 #include <Mlib/openGL/context.h>
 #include <Mlib/openGL/shader.h>
+#include <Mlib/simd.h>
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -23,6 +24,7 @@
 #include <stdio.h>
 #include <thread>
 #include <immintrin.h> // AVX intrinsics
+
 
 #include "Color.h"
 #include "Particle.h"
