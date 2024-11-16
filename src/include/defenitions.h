@@ -60,7 +60,7 @@ inline namespace Defines {
 
   #define FPS               (240.00)
   #define FRAMETIME_S       (1.00 / FPS)
-  #define TIME_STEP         (1)
+  #define TIME_STEP         (40)
   #define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
   #define PIXELS_PER_METER  (100.00f)
   #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)

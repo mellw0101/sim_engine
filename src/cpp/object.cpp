@@ -51,37 +51,29 @@ void unlink_object(Object *obj) {
 /* clang-format off */
 void projectile_collisions(void) {
   FOR_EACH_OBJECT(obj) {
-    // Create the obj arrays with a single value each.
-    const __m256 o_right  = _mm256_set1_ps(OBJ_R(obj));
-    const __m256 o_bottom = _mm256_set1_ps(OBJ_B(obj));
-    const __m256 o_left   = _mm256_set1_ps(OBJ_L(obj));
-    const __m256 o_top    = _mm256_set1_ps(OBJ_T(obj));
+    /* Create the obj arrays with a single value each. */
+    const __avx o_right (OBJ_R(obj));
+    const __avx o_bottom(OBJ_B(obj));
+    const __avx o_left  (OBJ_L(obj));
+    const __avx o_top   (OBJ_T(obj));
     for (Uint i = 0; i < projectile.size(); i += 8) {
-      const __m256 p_left    = _mm256_setr_ps(
-        OBJ_L(&projectile[i]),         OBJ_L(&projectile[(i+1 % 8)]), OBJ_L(&projectile[(i+2 % 8)]), OBJ_L(&projectile[(i+3 % 8)]),
-        OBJ_L(&projectile[(i+4 % 8)]), OBJ_L(&projectile[(i+5 % 8)]), OBJ_L(&projectile[(i+6 % 8)]), OBJ_L(&projectile[(i+7 % 8)])
-      );
-      const __m256 p_top     = _mm256_setr_ps(
-        OBJ_T(&projectile[i]),         OBJ_T(&projectile[(i+1 % 8)]), OBJ_T(&projectile[(i+2 % 8)]), OBJ_T(&projectile[(i+3 % 8)]),
-        OBJ_T(&projectile[(i+4 % 8)]), OBJ_T(&projectile[(i+5 % 8)]), OBJ_T(&projectile[(i+6 % 8)]), OBJ_T(&projectile[(i+7 % 8)])
-      );
-      const __m256 p_right   = _mm256_setr_ps(
-        OBJ_R(&projectile[i]),         OBJ_R(&projectile[(i+1 % 8)]), OBJ_R(&projectile[(i+2 % 8)]), OBJ_R(&projectile[(i+3 % 8)]),
-        OBJ_R(&projectile[(i+4 % 8)]), OBJ_R(&projectile[(i+5 % 8)]), OBJ_R(&projectile[(i+6 % 8)]), OBJ_R(&projectile[(i+7 % 8)])
-      );
-      const __m256 p_bottom  = _mm256_setr_ps(
-        OBJ_B(&projectile[i]),         OBJ_B(&projectile[(i+1 % 8)]), OBJ_B(&projectile[(i+2 % 8)]), OBJ_B(&projectile[(i+3 % 8)]),
-        OBJ_B(&projectile[(i+4 % 8)]), OBJ_B(&projectile[(i+5 % 8)]), OBJ_B(&projectile[(i+6 % 8)]), OBJ_B(&projectile[(i+7 % 8)])
-      );
-      // Perform simd cmp.
-      const __m256 cmp_right_ge_left = _mm256_cmp_ps(o_right, p_left, _CMP_GE_OQ);
-      const __m256 cmp_bottom_ge_top = _mm256_cmp_ps(o_bottom, p_top, _CMP_GE_OQ);
-      const __m256 cmp_left_le_right = _mm256_cmp_ps(o_left, p_right, _CMP_LE_OQ);
-      const __m256 cmp_top_le_bottom = _mm256_cmp_ps(o_top, p_bottom, _CMP_LE_OQ);
-      // Combine result.
+      const __avx p_left(  OBJ_L(&projectile[i]),   OBJ_L(&projectile[i+1]), OBJ_L(&projectile[i+2]), OBJ_L(&projectile[i+3]),
+                           OBJ_L(&projectile[i+4]), OBJ_L(&projectile[i+5]), OBJ_L(&projectile[i+6]), OBJ_L(&projectile[i+7]));
+      const __avx p_top(   OBJ_T(&projectile[i]),   OBJ_T(&projectile[i+1]), OBJ_T(&projectile[i+2]), OBJ_T(&projectile[i+3]),
+                           OBJ_T(&projectile[i+4]), OBJ_T(&projectile[i+5]), OBJ_T(&projectile[i+6]), OBJ_T(&projectile[i+7]));
+      const __avx p_right( OBJ_R(&projectile[i]),   OBJ_R(&projectile[i+1]), OBJ_R(&projectile[i+2]), OBJ_R(&projectile[i+3]),
+                           OBJ_R(&projectile[i+4]), OBJ_R(&projectile[i+5]), OBJ_R(&projectile[i+6]), OBJ_R(&projectile[i+7]));
+      const __avx p_bottom(OBJ_B(&projectile[i]),   OBJ_B(&projectile[i+1]), OBJ_B(&projectile[i+2]), OBJ_B(&projectile[i+3]),
+                           OBJ_B(&projectile[i+4]), OBJ_B(&projectile[i+5]), OBJ_B(&projectile[i+6]), OBJ_B(&projectile[i+7]));
+      /* Perform simd cmp. */
+      const __avx cmp_right_ge_left = (o_right  >= p_left); 
+      const __avx cmp_bottom_ge_top = (o_bottom >= p_top); 
+      const __avx cmp_left_le_right = (o_left   <= p_right); 
+      const __avx cmp_top_le_bottom = (o_top    <= p_bottom);
+      /* Combine result. */
       const __m256 horizontal_overlap = _mm256_and_ps(cmp_right_ge_left, cmp_left_le_right);
       const __m256 vertical_overlap   = _mm256_and_ps(cmp_bottom_ge_top, cmp_top_le_bottom);
-      // Extract mask.
+      /* Extract mask. */
       const int mask = _mm256_movemask_ps(_mm256_and_ps(horizontal_overlap, vertical_overlap));
       for (Uint k = 0; k < 8; ++k) {
         if ((mask & (1 << k)) == (1 << k)) {
@@ -93,50 +85,39 @@ void projectile_collisions(void) {
 }
 
 void projectile_rk4_step(float delta_t) {
-  const __m256 dt   = _mm256_set1_ps(delta_t);
-  const __m256 half = _mm256_set1_ps(0.5f);
-  const __m256 six  = _mm256_set1_ps(6.0f);
-  const __m256 two  = _mm256_set1_ps(2.0f);
-  const __m256 pix  = _mm256_set1_ps(PIXELS_PER_METER);
+  /* Define some constants. */
+  const __avx dt  (delta_t);
+  const __avx half(0.5f);
+  const __avx six (6.0f);
+  const __avx two (2.0f);
+  const __avx pix (PIXELS_PER_METER);
   for (Uint i = 0; i < projectile.size(); i += 8) {
-    __m256 posx = _mm256_setr_ps(
-      projectile[i].data.pos.x,         projectile[i+(1 % 8)].data.pos.x, projectile[i+(2 % 8)].data.pos.x, projectile[i+(3 % 8)].data.pos.x,
-      projectile[i+(4 % 8)].data.pos.x, projectile[i+(5 % 8)].data.pos.x, projectile[i+(6 % 8)].data.pos.x, projectile[i+(7 % 8)].data.pos.x
-    );
-    __m256 posy = _mm256_setr_ps(
-      projectile[i].data.pos.y,         projectile[i+(1 % 8)].data.pos.y, projectile[i+(2 % 8)].data.pos.y, projectile[i+(3 % 8)].data.pos.y,
-      projectile[i+(4 % 8)].data.pos.y, projectile[i+(5 % 8)].data.pos.y, projectile[i+(6 % 8)].data.pos.y, projectile[i+(7 % 8)].data.pos.y
-    );
-    __m256 velx = _mm256_setr_ps(
-      projectile[i].data.vel.x,         projectile[i+(1 % 8)].data.vel.x, projectile[i+(2 % 8)].data.vel.x, projectile[i+(3 % 8)].data.vel.x,
-      projectile[i+(4 % 8)].data.vel.x, projectile[i+(5 % 8)].data.vel.x, projectile[i+(6 % 8)].data.vel.x, projectile[i+(7 % 8)].data.vel.x
-    );
-    __m256 vely = _mm256_setr_ps(
-      projectile[i].data.vel.y,         projectile[i+(1 % 8)].data.vel.y, projectile[i+(2 % 8)].data.vel.y, projectile[i+(3 % 8)].data.vel.y,
-      projectile[i+(4 % 8)].data.vel.y, projectile[i+(5 % 8)].data.vel.y, projectile[i+(6 % 8)].data.vel.y, projectile[i+(7 % 8)].data.vel.y
-    );
-    __m256 accelx = _mm256_setr_ps(
-      projectile[i].data.accel.x,         projectile[i+(1 % 8)].data.accel.x, projectile[i+(2 % 8)].data.accel.x, projectile[i+(3 % 8)].data.accel.x,
-      projectile[i+(4 % 8)].data.accel.x, projectile[i+(5 % 8)].data.accel.x, projectile[i+(6 % 8)].data.accel.x, projectile[i+(7 % 8)].data.accel.x
-    );
-    __m256 accely = _mm256_setr_ps(
-      projectile[i].data.accel.y,         projectile[i+(1 % 8)].data.accel.y, projectile[i+(2 % 8)].data.accel.y, projectile[i+(3 % 8)].data.accel.y,
-      projectile[i+(4 % 8)].data.accel.y, projectile[i+(5 % 8)].data.accel.y, projectile[i+(6 % 8)].data.accel.y, projectile[i+(7 % 8)].data.accel.y
-    );
-    const __m256 fx = _mm256_mul_ps(accelx, dt);
-    const __m256 fy = _mm256_mul_ps(accely, dt);
-    const __m256 k1x = _mm256_mul_ps(velx, dt);
-    const __m256 k1y = _mm256_mul_ps(vely, dt);
-    const __m256 k2x = _mm256_mul_ps(_mm256_add_ps(velx, _mm256_mul_ps(half, fx)), dt);
-    const __m256 k2y = _mm256_mul_ps(_mm256_add_ps(vely, _mm256_mul_ps(half, fy)), dt);
-    const __m256 k3x = k2x;
-    const __m256 k3y = k2y;
-    const __m256 k4x = _mm256_mul_ps(_mm256_add_ps(velx, fx), dt);
-    const __m256 k4y = _mm256_mul_ps(_mm256_add_ps(vely, fy), dt);
-    posx = _mm256_add_ps(posx, _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(_mm256_add_ps(k1x, _mm256_add_ps(_mm256_mul_ps(two, k2x), _mm256_mul_ps(two, k3x))), k4x), six), pix));
-    posy = _mm256_add_ps(posy, _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(_mm256_add_ps(k1y, _mm256_add_ps(_mm256_mul_ps(two, k2y), _mm256_mul_ps(two, k3y))), k4y), six), pix));
-    velx = _mm256_add_ps(velx, _mm256_div_ps(_mm256_add_ps(_mm256_add_ps(fx, _mm256_add_ps(_mm256_mul_ps(two, fx), _mm256_mul_ps(two, fx))), fx), six));
-    vely = _mm256_add_ps(vely, _mm256_div_ps(_mm256_add_ps(_mm256_add_ps(fy, _mm256_add_ps(_mm256_mul_ps(two, fy), _mm256_mul_ps(two, fy))), fy), six));
+    __avx posx(  projectile[i].data.pos.x,     projectile[i+1].data.pos.x,   projectile[i+2].data.pos.x,   projectile[i+3].data.pos.x,
+                 projectile[i+4].data.pos.x,   projectile[i+5].data.pos.x,   projectile[i+6].data.pos.x,   projectile[i+7].data.pos.x);
+    __avx posy(  projectile[i].data.pos.y,     projectile[i+1].data.pos.y,   projectile[i+2].data.pos.y,   projectile[i+3].data.pos.y,
+                 projectile[i+4].data.pos.y,   projectile[i+5].data.pos.y,   projectile[i+6].data.pos.y,   projectile[i+7].data.pos.y);
+    __avx velx(  projectile[i].data.vel.x,     projectile[i+1].data.vel.x,   projectile[i+2].data.vel.x,   projectile[i+3].data.vel.x,
+                 projectile[i+4].data.vel.x,   projectile[i+5].data.vel.x,   projectile[i+6].data.vel.x,   projectile[i+7].data.vel.x);
+    __avx vely(  projectile[i].data.vel.y,     projectile[i+1].data.vel.y,   projectile[i+2].data.vel.y,   projectile[i+3].data.vel.y,
+                 projectile[i+4].data.vel.y,   projectile[i+5].data.vel.y,   projectile[i+6].data.vel.y,   projectile[i+7].data.vel.y);
+    __avx accelx(projectile[i].data.accel.x,   projectile[i+1].data.accel.x, projectile[i+2].data.accel.x, projectile[i+3].data.accel.x,
+                 projectile[i+4].data.accel.x, projectile[i+5].data.accel.x, projectile[i+6].data.accel.x, projectile[i+7].data.accel.x);
+    __avx accely(projectile[i].data.accel.y,   projectile[i+1].data.accel.y, projectile[i+2].data.accel.y, projectile[i+3].data.accel.y,
+                 projectile[i+4].data.accel.y, projectile[i+5].data.accel.y, projectile[i+6].data.accel.y, projectile[i+7].data.accel.y);
+    const __avx fx  = (accelx * dt);
+    const __avx fy  = (accely * dt);
+    const __avx k1x = (velx * dt);
+    const __avx k1y = (vely * dt);
+    const __avx k2x = ((velx + (half * fx)) * dt);
+    const __avx k2y = ((vely + (half * fy)) * dt);
+    const __avx k3x = k2x;
+    const __avx k3y = k2y;
+    const __avx k4x = ((velx + fx) * dt);
+    const __avx k4y = ((vely + fy) * dt);
+    posx += ((((k1x + ((two * k2x) + (two * k3x))) + k4x) / six) * pix);
+    posy += ((((k1y + ((two * k2y) + (two * k3y))) + k4y) / six) * pix);
+    velx += (((fx + ((two * fx) + (two * fx))) + fx) / six);
+    vely += (((fy + ((two * fy) + (two * fy))) + fy) / six);
     for (Uint k = 0; k < 8 && i + k < projectile.size(); ++k) {
       projectile[i + k].data.pos.x   = posx[k];
       projectile[i + k].data.pos.y   = posy[k];
