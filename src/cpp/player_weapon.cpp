@@ -142,7 +142,7 @@ void PlayerWeapon::attack(int button) {
       MVec2   center = MVec2::center_with_offset(MVec2::from(barrel.points[1]) - engine->camera.pos,
                                                  MVec2::from(barrel.points[2]) - engine->camera.pos, {-10, 0});
       Projectile b;
-      b.data.pos = {center.x + engine->camera.pos.x, center.y + engine->camera.pos.y};
+      b.data.pos = {center.x, center.y};
       b.data.vel.set_magnitude_and_angle(700.0f, center.angle_to((engine->mouse_data.x - engine->camera.pos.x),
                                                                   (engine->mouse_data.y - engine->camera.pos.y))); 
       b.width = 2.0f;

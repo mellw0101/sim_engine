@@ -6,14 +6,8 @@ void physics(void) {
     for (Uint i = 0; i < projectile.size(); ++i) {
       /* Draw projectile. */
       SDL_SetRenderDrawColor(engine->ren.ren, RED);
-      SDL_FRect r = {projectile[i].data.pos.x, projectile[i].data.pos.y, projectile[i].width, projectile[i].height};
+      SDL_FRect r = {projectile[i].data.pos.x + engine->camera.pos.x, projectile[i].data.pos.y + engine->camera.pos.y, projectile[i].width, projectile[i].height};
       engine->ren.fill_rect(&r);
-      /* Calculate air resistance. */
-      const float air_density          = calculate_air_density(20, PIXEL_TO_M((window_height - projectile[i].data.pos.y)));
-      const float cross_sectional_area = calculate_cross_sectional_area_box(projectile[i].width, projectile[i].height);
-      const MVec2 air_resistance       = calculate_air_resistance(projectile[i].data.vel, 1.28f, air_density, cross_sectional_area, 10.0f);
-      /* Perform rk4 step. */
-      projectile[i].data.accel = air_resistance + gravity_vector;
       /* When a projectile goes outside view-port remove it. */
       if (OBJ_L(&projectile[i]) > window_width || OBJ_T(&projectile[i]) > window_height || OBJ_R(&projectile[i]) < 0) {
         projectile.erase(&projectile[i]);
@@ -22,8 +16,6 @@ void physics(void) {
     }
     projectile_rk4_step(TIME_STEP_S);
     projectile_collisions();
-  }
-  for (Uchar i = 0; i < TIME_STEP; ++i) {
     /* Constrain the player inside the window for now. */
     HIT_WALL(player, 0, (window_width - player->width), -100, (window_height - player->height));
     FOR_EACH_OBJECT(object) {

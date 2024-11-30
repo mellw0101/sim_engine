@@ -86,12 +86,58 @@ void projectile_collisions(void) {
 
 void projectile_rk4_step(float delta_t) {
   /* Define some constants. */
-  const __avx dt  (delta_t);
-  const __avx half(0.5f);
-  const __avx six (6.0f);
-  const __avx two (2.0f);
-  const __avx pix (PIXELS_PER_METER);
+  const __avx dt      (delta_t);
+  const __avx half    (0.5f);
+  const __avx six     (6.0f);
+  const __avx two     (2.0f);
+  const __avx pix     (PIXELS_PER_METER);
+  const __avx<float> grav(GRAVITY);
   for (Uint i = 0; i < projectile.size(); i += 8) {
+    MVec2 air_res[8] = {
+      calculate_air_resistance(
+        projectile[i].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i].width, projectile[i].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+1].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+1].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+1].width, projectile[i+1].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+2].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+2].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+2].width, projectile[i+2].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+3].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+3].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+3].width, projectile[i+3].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+4].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+4].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+4].width, projectile[i+4].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+5].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+5].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+5].width, projectile[i+5].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+6].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+6].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+6].width, projectile[i+6].height), 10.0f
+      ),
+      calculate_air_resistance(
+        projectile[i+7].data.vel, 1.28f,
+        calculate_air_density(engine->enviroment.temp, PIXEL_TO_M(window_height - projectile[i+7].data.pos.y)),
+        calculate_cross_sectional_area_box(projectile[i+7].width, projectile[i+7].height), 10.0f
+      )
+    };
+    __avx accelx(air_res[0].x, air_res[1].x, air_res[2].x, air_res[3].x, air_res[4].x, air_res[5].x, air_res[6].x, air_res[7].x);
+    __avx air_resistance_y(air_res[0].y, air_res[1].y, air_res[2].y, air_res[3].y, air_res[4].y, air_res[5].y, air_res[6].y, air_res[7].y);
+    __avx accely(air_resistance_y + grav);
     __avx posx(  projectile[i].data.pos.x,     projectile[i+1].data.pos.x,   projectile[i+2].data.pos.x,   projectile[i+3].data.pos.x,
                  projectile[i+4].data.pos.x,   projectile[i+5].data.pos.x,   projectile[i+6].data.pos.x,   projectile[i+7].data.pos.x);
     __avx posy(  projectile[i].data.pos.y,     projectile[i+1].data.pos.y,   projectile[i+2].data.pos.y,   projectile[i+3].data.pos.y,
@@ -100,10 +146,6 @@ void projectile_rk4_step(float delta_t) {
                  projectile[i+4].data.vel.x,   projectile[i+5].data.vel.x,   projectile[i+6].data.vel.x,   projectile[i+7].data.vel.x);
     __avx vely(  projectile[i].data.vel.y,     projectile[i+1].data.vel.y,   projectile[i+2].data.vel.y,   projectile[i+3].data.vel.y,
                  projectile[i+4].data.vel.y,   projectile[i+5].data.vel.y,   projectile[i+6].data.vel.y,   projectile[i+7].data.vel.y);
-    __avx accelx(projectile[i].data.accel.x,   projectile[i+1].data.accel.x, projectile[i+2].data.accel.x, projectile[i+3].data.accel.x,
-                 projectile[i+4].data.accel.x, projectile[i+5].data.accel.x, projectile[i+6].data.accel.x, projectile[i+7].data.accel.x);
-    __avx accely(projectile[i].data.accel.y,   projectile[i+1].data.accel.y, projectile[i+2].data.accel.y, projectile[i+3].data.accel.y,
-                 projectile[i+4].data.accel.y, projectile[i+5].data.accel.y, projectile[i+6].data.accel.y, projectile[i+7].data.accel.y);
     const __avx fx  = (accelx * dt);
     const __avx fy  = (accely * dt);
     const __avx k1x = (velx * dt);
@@ -118,7 +160,7 @@ void projectile_rk4_step(float delta_t) {
     posy += ((((k1y + ((two * k2y) + (two * k3y))) + k4y) / six) * pix);
     velx += (((fx + ((two * fx) + (two * fx))) + fx) / six);
     vely += (((fy + ((two * fy) + (two * fy))) + fy) / six);
-    for (Uint k = 0; k < 8 && i + k < projectile.size(); ++k) {
+    for (Uint k = 0; k < 8 && (i + k) < projectile.size(); ++k) {
       projectile[i + k].data.pos.x   = posx[k];
       projectile[i + k].data.pos.y   = posy[k];
       projectile[i + k].data.vel.x   = velx[k];

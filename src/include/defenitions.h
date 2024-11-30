@@ -63,7 +63,7 @@ inline namespace Defines {
   #define TIME_STEP         (40)
   #define TIME_STEP_S       (FRAMETIME_S / TIME_STEP)
   #define PIXELS_PER_METER  (100.00f)
-  #define PIXEL_TO_M(pixel) (pixel / PIXELS_PER_METER)
+  #define PIXEL_TO_M(pixel) ((pixel) / PIXELS_PER_METER)
   #define M_TO_PIXEL(m)     ((m) * PIXELS_PER_METER)
 
   #define SEA_LEVEL_PRESSURE     (101325.0f)  /* Pa */
